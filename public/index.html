@@ -6,12 +6,49 @@
       <link rel="stylesheet" href="./style.css">
       <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+          .strokeme
+            {
+                color: white;
+                text-shadow:
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000;  
+            }
+      </style>
       <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script>
+        function setEnergyLevel(eLevel) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/setEnergyLevel?"+Number(21-eLevel));
+            xmlHttpReq.send();
+        }
+
+        function setColorShift(cShift) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/setColorShift?"+Number(cShift));
+            xmlHttpReq.send();
+        }
+
+        function setColorBrightness(cBrightness) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/setColorBrightness?"+Number(cBrightness));
+            xmlHttpReq.send();
+        }
+      </script>
   </head>
 
   <body style="background-color: #7700FF;">
     <div id="myPlot" ></div>
-
+    <div>
+        <input type="range" class="form-range" value="10" min="1" max="20" id="eLevel" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Energy Level: '+this.value" onchange="setEnergyLevel(this.value)">
+        <output class="h3 strokeme">Set Energy Level: 10</output>
+        <input type="range" class="form-range" value="0" min="0" max="360" id="cShift" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Color Shift: '+this.value" onchange="setColorShift(this.value)">
+        <output class="h3 strokeme">Set Color Shift: 0</output>
+        <input type="range" class="form-range" value="255" min="0" max="255" id="cShift" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Brightness: '+this.value" onchange="setColorBrightness(this.value)">
+        <output class="h3 strokeme">Set Color Shift: 255</output>
+    </div>
     <script>
         var fps = 15
         const updateInterval = Math.trunc((1/fps)*1000)
