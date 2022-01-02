@@ -256,16 +256,7 @@ func computeColor(sampleRate uint32, pad int) {
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 
-	scale2Brightness := func(rgbvalue uint32) uint32 {
-		if colorBrightness == 255 {
-			return rgbvalue
-		}
-		rgbf := float32(rgbvalue)
-		b := colorBrightness / 255
-		return uint32(rgbf * b)
-	}
-
-	fftColor[0], fftColor[1], fftColor[2] = scale2Brightness(rgbRotated[0]), scale2Brightness(rgbRotated[1]), scale2Brightness(rgbRotated[2])
+	fftColor[0], fftColor[1], fftColor[2] = rgbRotated[0], rgbRotated[1], rgbRotated[2]
 
 	os.Stdout.Write([]byte{uint8(fftColor[0]), uint8(fftColor[1]), uint8(fftColor[2])})
 }
