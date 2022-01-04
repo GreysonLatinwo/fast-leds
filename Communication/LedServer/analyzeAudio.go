@@ -21,9 +21,9 @@ var streaming = true
 var audioStreamBufferSize = 1 << 10
 var numBins int = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
 
-var fftColor [3]byte = [3]byte{0, 0, 0}
+var fftColor = []byte{0, 0, 0}
 var fftColorBuffer [][]float64
-var fftColorBufferSize int = 11
+var fftColorBufferSize int = 16
 var fftColorShift float64 = 0
 
 var colorBrightness byte = 255
@@ -41,11 +41,11 @@ func init() {
 		jsonOut, err := json.Marshal(struct {
 			Power []float64
 			Freq  []float64
-			Color [3]byte // [r,g,b]
+			Color []uint32 // [r,g,b]
 		}{
 			Power: pxx,
 			Freq:  freq,
-			Color: fftColor,
+			Color: []uint32{uint32(fftColor[0]), uint32(fftColor[1]), uint32(fftColor[2])},
 		})
 		ChkPrint(err)
 		rw.Write(jsonOut)
@@ -89,23 +89,22 @@ func init() {
 
 // takes audio stream, analyses the audio and writes the output to color
 func main() {
-
 	go StartPulseAudio()
-	colorUpdate := InitComms()
-
-	// Read audio stream
+	udpClients, err := InitComms()
+	ChkFatal(err, "Comms couldnt be initialized")
+	udpClients <- []byte{0, 0, 0}
 	ProcessAudioStream(pulse, colorUpdate)
 }
 
 // read audio stream and computes fft and color
-func ProcessAudioStream(client *pulseaudio.Client, colorUpdate chan [3]byte) {
+func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 	streams, _ := client.Core().ListPath("PlaybackStreams")
 	if len(streams) == 0 {
 		log.Println("Waiting for audio stream to process...")
 	}
 	for {
 		streams, _ = client.Core().ListPath("PlaybackStreams")
-		for len(streams) < 1 {
+		if len(streams) < 1 {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
@@ -151,7 +150,7 @@ func ProcessAudioStream(client *pulseaudio.Client, colorUpdate chan [3]byte) {
 			//FFT
 			opt := &spectral.PwelchOptions{
 				NFFT:      numBins, //nfft should be power of 2
-				Pad:       2800,    //same as NFFT
+				Pad:       numBins, //same as NFFT
 				Window:    window.Bartlett,
 				Scale_off: false,
 			}
@@ -161,14 +160,14 @@ func ProcessAudioStream(client *pulseaudio.Client, colorUpdate chan [3]byte) {
 			pxx = normalizePower(pxx)
 
 			colorOut := computeColor(pxx, sampleRate, opt.Pad)
-			colorUpdate <- colorOut
+			udpClients <- colorOut
 		}
 	}
 }
 
 // converts the pxx and freq to rgb values
 // and saves them to the 'fftColor' variable
-func computeColor(pxx []float64, sampleRate uint32, pad int) [3]byte {
+func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	findMax := func(arr []float64) float64 {
 		max := 0.0
 		for _, v := range arr {
@@ -224,17 +223,17 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) [3]byte {
 	blueAvg = math.Min(blueAvg*1.5, 255)
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
-
 	fftColor = scaleColor2Brightness(rgbRotated)
+
 	return fftColor
 }
 
 //************************Helper Func***************************
 
 // rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
-func rotateColor(rgb []float64, rotDeg float64) [3]byte {
+func rotateColor(rgb []float64, rotDeg float64) []byte {
 	if rotDeg != 0 {
-		return [3]byte{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])}
+		return []byte{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])}
 	}
 
 	pi := 3.14159265
@@ -259,7 +258,7 @@ func rotateColor(rgb []float64, rotDeg float64) [3]byte {
 		{1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA), 1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA},
 		{1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA, 1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA)}}
 
-	out := [3]byte{0, 0, 0}
+	out := []byte{0, 0, 0}
 
 	//Use the rotation matrix to convert the RGB directly
 	out[2] = clamp(rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2])
@@ -283,8 +282,8 @@ func normalizePower(pxx []float64) []float64 {
 }
 
 // scale the color to the brightness
-func scaleColor2Brightness(color [3]byte) [3]byte {
-	scaledColor := [3]byte{color[0], color[1], color[2]}
+func scaleColor2Brightness(color []byte) []byte {
+	scaledColor := []byte{color[0], color[1], color[2]}
 	for i, val := range color {
 		if colorBrightness == 255 {
 			continue //we are able to continue bc we set the value equal at the beginning

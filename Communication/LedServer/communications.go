@@ -3,18 +3,22 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
+	"os"
 )
 
 const colorUpdateBufSize = 8
 
+var webServerPort = ":9000"
+
 var clients []*net.UDPAddr
-var colorUpdate = make(chan [3]byte, colorUpdateBufSize)
+var colorUpdate = make(chan []byte, colorUpdateBufSize)
 var addr = net.UDPAddr{
 	Port: 1234,
 	IP:   nil,
 }
 
-func InitComms() (chan [3]byte, error) {
+func InitComms() (chan []byte, error) {
 
 	server, err := net.ListenUDP("udp", &addr)
 	if err != nil {
@@ -25,16 +29,19 @@ func InitComms() (chan [3]byte, error) {
 
 	go sendColor(server, colorUpdate)
 
+	go http.ListenAndServe(webServerPort, nil)
+
 	return colorUpdate, nil
 }
 
 //takes the color output and tells the network
-func sendColor(server *net.UDPConn, colorUpdate chan [3]byte) {
+func sendColor(server *net.UDPConn, colorUpdate chan []byte) {
+	// set FPS limit
 	for {
 		color := <-colorUpdate
-		//log.Println(color)
+		os.Stdout.Write(color)
 		for _, client := range clients {
-			_, err := server.WriteToUDP(color[:], client)
+			_, err := server.WriteToUDP(color, client)
 			ChkPrint(err)
 		}
 	}
