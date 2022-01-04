@@ -27,7 +27,7 @@ var isModuleLoaded bool
 var pxx, freq []float64
 var fftColor []uint32 = []uint32{0, 0, 0}
 var streaming = true
-var audioStreamBufferSize = 1 << 12
+var audioStreamBufferSize = 1 << 10
 var numBins int = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
 
 var fftColorBuffer [][]float64
@@ -212,7 +212,7 @@ func computeColor(sampleRate uint32, pad int) {
 
 	var redLowerFreq int = 0
 	var greenLowerFreq int = 200
-	var blueLowerFreq int = 600
+	var blueLowerFreq int = 456
 	var blueupperFreq int = 2800
 
 	redLowerIdx := computeFreqIdx(redLowerFreq)
@@ -257,6 +257,8 @@ func computeColor(sampleRate uint32, pad int) {
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 
 	fftColor[0], fftColor[1], fftColor[2] = rgbRotated[0], rgbRotated[1], rgbRotated[2]
+
+	fftColor = scaleColor2Brightness(fftColor)
 
 	os.Stdout.Write([]byte{uint8(fftColor[0]), uint8(fftColor[1]), uint8(fftColor[2])})
 }
@@ -343,6 +345,20 @@ func rotateColor(rgb []float64, rotDeg float64) []uint32 {
 	out[0] = clamp(rgb[0]*matrix[0][0] + rgb[1]*matrix[0][1] + rgb[2]*matrix[0][2])
 	out[1] = clamp(rgb[0]*matrix[1][0] + rgb[1]*matrix[1][1] + rgb[2]*matrix[1][2])
 	return out
+}
+
+// scale the color to the brightness
+func scaleColor2Brightness(color []uint32) []uint32 {
+	scaledColor := []uint32{color[0], color[1], color[2]}
+	for i, val := range color {
+		if colorBrightness == 255 {
+			continue //we are able to continue bc we set the value equal at the beginning
+		}
+		valf := float32(val)
+		scaler := float32(colorBrightness) / 255.0
+		scaledColor[i] = uint32(valf * scaler)
+	}
+	return scaledColor
 }
 
 //normalizes the fft power data

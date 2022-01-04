@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	brightness = 192 //max is 255
+	brightness = 255 //max is 255
 	width      = 63
 	height     = 1
 	ledCounts  = width * height

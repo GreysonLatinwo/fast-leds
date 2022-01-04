@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/godbus/dbus"
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
 	"github.com/sqp/pulseaudio"
@@ -17,27 +16,17 @@ import (
 	"strconv"
 )
 
-// Create a pulse dbus service with 2 clients, listen to events,
-// then use some properties.
-var app *AppPulse
-var pulse *pulseaudio.Client
-var isModuleLoaded bool
-
 var pxx, freq []float64
-var fftColor []uint32 = []uint32{0, 0, 0}
 var streaming = true
-var audioStreamBufferSize = 1 << 12
+var audioStreamBufferSize = 1 << 10
 var numBins int = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
 
+var fftColor [3]byte = [3]byte{0, 0, 0}
 var fftColorBuffer [][]float64
 var fftColorBufferSize int = 11
 var fftColorShift float64 = 0
 
-var colorBrightness float32 = 255
-
-var colorOut *[3]uint8
-
-//const webServerAddr = ":9002"
+var colorBrightness byte = 255
 
 //initalize webServer
 func init() {
@@ -52,19 +41,19 @@ func init() {
 		jsonOut, err := json.Marshal(struct {
 			Power []float64
 			Freq  []float64
-			Color []uint32 // [r,g,b]
+			Color [3]byte // [r,g,b]
 		}{
 			Power: pxx,
 			Freq:  freq,
 			Color: fftColor,
 		})
-		chkPrint(err)
+		ChkPrint(err)
 		rw.Write(jsonOut)
 	})
 	http.HandleFunc("/music/setEnergyLevel", func(rw http.ResponseWriter, r *http.Request) {
 		energyLevel := r.URL.RawQuery
 		energyLevelInt, err := strconv.Atoi(energyLevel)
-		chkPrint(err)
+		ChkPrint(err)
 		fftColorBufferSize = energyLevelInt
 	})
 	http.HandleFunc("/music/getVariables", func(rw http.ResponseWriter, r *http.Request) {
@@ -73,7 +62,7 @@ func init() {
 			AudioStreamBufferSize int
 			FFTColorBufferSize    int
 			ColorShift            float64
-			ColorBrightness       float32
+			ColorBrightness       byte
 		}{
 			IsStreaming:           streaming,
 			AudioStreamBufferSize: audioStreamBufferSize,
@@ -81,73 +70,46 @@ func init() {
 			ColorShift:            fftColorShift,
 			ColorBrightness:       colorBrightness,
 		})
-		chkPrint(err)
+		ChkPrint(err)
 		rw.Write(vars)
 	})
 	http.HandleFunc("/music/setColorShift", func(rw http.ResponseWriter, r *http.Request) {
 		energyLevel := r.URL.RawQuery
 		energyLevelInt, err := strconv.Atoi(energyLevel)
-		chkPrint(err)
+		ChkPrint(err)
 		fftColorShift = float64(energyLevelInt)
 	})
 	http.HandleFunc("/music/setColorBrightness", func(rw http.ResponseWriter, r *http.Request) {
 		energyLevel := r.URL.RawQuery
 		energyLevelInt, err := strconv.Atoi(energyLevel)
-		chkPrint(err)
-		colorBrightness = float32(energyLevelInt)
+		ChkPrint(err)
+		colorBrightness = byte(energyLevelInt)
 	})
 }
 
-//initalize pulseaudio
-func init() {
-	// Load pulseaudio DBus module if needed. This module is mandatory, but it
-	// can also be configured in system files. See package doc.
-	isLoaded, e := pulseaudio.ModuleIsLoaded()
-	chkFatal(e, "test pulse dbus module is loaded")
-	if !isLoaded {
-		e = pulseaudio.LoadModule()
-		chkFatal(e, "load pulse dbus module")
-	}
-
-	// Connect to the pulseaudio dbus service.
-	pulse, e = pulseaudio.New()
-	chkPrint(e)
-
-	// Create and register a first client.
-	app = &AppPulse{}
-	pulse.Register(app)
-}
-
 // takes audio stream, analyses the audio and writes the output to color
-func AnalyzeAudio(color *[3]uint8) {
-	colorOut = color
-	if isModuleLoaded {
-		defer pulseaudio.UnloadModule() // has error to test
-	}
-	defer pulse.Close()         // has error to test
-	defer pulse.Unregister(app) // has errors to test
-	// Listen to registered events.
-	go pulse.Listen()
-	defer pulse.StopListening()
+func main() {
+
+	go startPulseAudio()
+	colorUpdate := initComms()
 
 	// Read audio stream
-	ProcessAudioStream(pulse)
-
-	// The distributed leds main function will start the server we dont have to
-	// bc we are setting the main http server endpoints.
-	//log.Println("Starting Server On", webServerAddr)
-	//log.Fatal(http.ListenAndServe(webServerAddr, nil))
+	ProcessAudioStream(pulse, colorUpdate)
 }
 
-// read audio stream and compute fft
-func ProcessAudioStream(client *pulseaudio.Client) {
-	log.Println("Waiting for audio stream to process...")
+// read audio stream and computes fft and color
+func ProcessAudioStream(client *pulseaudio.Client, colorUpdate chan [3]byte) {
+	streams, _ := client.Core().ListPath("PlaybackStreams")
+	if len(streams) == 0 {
+		log.Println("Waiting for audio stream to process...")
+	}
 	for {
-		streams, _ := client.Core().ListPath("PlaybackStreams")
-		if len(streams) < 1 {
+		streams, _ = client.Core().ListPath("PlaybackStreams")
+		for len(streams) < 1 {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
+		log.Println("Streams:", streams)
 		stream := streams[0]
 		log.Println("Stream found:", stream)
 		// Get the device to query properties for the stream referenced by his path.
@@ -165,14 +127,14 @@ func ProcessAudioStream(client *pulseaudio.Client) {
 		log.Println("\tChannels map:", numChannels)
 
 		props, e := dev.MapString("PropertyList") // map[string]string
-		chkPrint(e)
+		ChkPrint(e)
 		log.Println(props["media.name"])
 
 		cmd := exec.Command("parec")
 		audioStreamReader, err := cmd.StdoutPipe()
-		chkFatal(err, "cmd.StdoutPipe()")
+		ChkFatal(err, "cmd.StdoutPipe error")
 		err = cmd.Start()
-		chkFatal(err, "cmd.Start()")
+		ChkFatal(err, "cmd.Start()")
 
 		audioStreamBuffer := make([]int16, audioStreamBufferSize)
 
@@ -189,23 +151,24 @@ func ProcessAudioStream(client *pulseaudio.Client) {
 			//FFT
 			opt := &spectral.PwelchOptions{
 				NFFT:      numBins, //nfft should be power of 2
-				Pad:       numBins, //same as NFFT
+				Pad:       2800,    //same as NFFT
 				Window:    window.Bartlett,
 				Scale_off: false,
 			}
 			pxx, freq = spectral.Pwelch(buffercomplex, float64(int(sampleRate)*len(numChannels)), opt)
 			rangeFreq := computeFreqIdx(3000, int(sampleRate), opt.Pad)
 			pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
-			normalizePower(pxx)
-			computeColor(sampleRate, opt.Pad)
-			(*colorOut)[0], (*colorOut)[1], (*colorOut)[2] = uint8(fftColor[0]), uint8(fftColor[1]), uint8(fftColor[2])
+			pxx = normalizePower(pxx)
+
+			colorOut := computeColor(pxx, sampleRate, opt.Pad)
+			colorUpdate <- colorOut
 		}
 	}
 }
 
 // converts the pxx and freq to rgb values
 // and saves them to the 'fftColor' variable
-func computeColor(sampleRate uint32, pad int) {
+func computeColor(pxx []float64, sampleRate uint32, pad int) [3]byte {
 	findMax := func(arr []float64) float64 {
 		max := 0.0
 		for _, v := range arr {
@@ -262,86 +225,31 @@ func computeColor(sampleRate uint32, pad int) {
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 
-	scale2Brightness := func(rgbvalue uint32) uint32 {
-		if colorBrightness == 255 {
-			return rgbvalue
-		}
-		rgbf := float32(rgbvalue)
-		b := colorBrightness / 255
-		return uint32(rgbf * b)
-	}
-
-	fftColor[0], fftColor[1], fftColor[2] = scale2Brightness(rgbRotated[0]), scale2Brightness(rgbRotated[1]), scale2Brightness(rgbRotated[2])
-
-	//os.Stdout.Write([]byte{uint8(fftColor[0]), uint8(fftColor[1]), uint8(fftColor[2])})
-}
-
-//*************************Callback Event Func****************************
-
-// AppPulse is a client that connects 6 callbacks.
-//
-type AppPulse struct{}
-
-// NewSink is called when a sink is added.
-//
-func (ap *AppPulse) NewSink(path dbus.ObjectPath) {
-	log.Println("new sink:", path)
-}
-
-// SinkRemoved is called when a sink is removed.
-//
-func (ap *AppPulse) SinkRemoved(path dbus.ObjectPath) {
-	log.Println("sink removed:", path)
-}
-
-// NewPlaybackStream is called when a playback stream is added.
-//
-func (ap *AppPulse) NewPlaybackStream(path dbus.ObjectPath) {
-	streaming = true
-	log.Println("new playback stream:", path)
-}
-
-// PlaybackStreamRemoved is called when a playback stream is removed.
-//
-func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
-	streaming = false
-	log.Println("playback stream removed:", path)
-}
-
-// DeviceVolumeUpdated is called when the volume has changed on a device.
-//
-func (ap *AppPulse) DeviceVolumeUpdated(path dbus.ObjectPath, values []uint32) {
-	log.Println("device volume updated:", path, values)
-}
-
-// DeviceActiveCardUpdated is called when active card has changed on a device.
-// i.e. headphones injected.
-func (ap *AppPulse) DeviceActiveCardUpdated(path dbus.ObjectPath, port dbus.ObjectPath) {
-	log.Println("device active card updated:", path, port)
-}
-
-// StreamVolumeUpdated is called when the volume has changed on a stream.
-//
-func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, values []uint32) {
-	log.Println("stream volume:", path, values)
+	fftColor = scaleColor2Brightness(rgbRotated)
+	return fftColor
 }
 
 //************************Helper Func***************************
 
-func rotateColor(rgb []float64, rotDeg float64) []uint32 {
+// rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
+func rotateColor(rgb []float64, rotDeg float64) [3]byte {
+	if rotDeg != 0 {
+		return [3]byte{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])}
+	}
+
 	pi := 3.14159265
 	sqrtf := func(x float64) float64 {
 		return math.Sqrt(x)
 	}
 
-	clamp := func(v float64) uint32 {
+	clamp := func(v float64) byte {
 		if v < 0 {
 			return 0
 		}
 		if v > 255 {
 			return 255
 		}
-		return uint32(v)
+		return byte(v)
 	}
 
 	cosA := math.Cos(rotDeg * pi / 180) //convert degrees to radians
@@ -351,7 +259,7 @@ func rotateColor(rgb []float64, rotDeg float64) []uint32 {
 		{1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA), 1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA},
 		{1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA, 1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA)}}
 
-	out := []uint32{0, 0, 0}
+	out := [3]byte{0, 0, 0}
 
 	//Use the rotation matrix to convert the RGB directly
 	out[2] = clamp(rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2])
@@ -360,7 +268,7 @@ func rotateColor(rgb []float64, rotDeg float64) []uint32 {
 	return out
 }
 
-//normalizes the fft power data
+// normalizes the fft power data
 func normalizePower(pxx []float64) []float64 {
 	var min = 0
 	for i := range pxx {
@@ -374,6 +282,21 @@ func normalizePower(pxx []float64) []float64 {
 	return pxx
 }
 
+// scale the color to the brightness
+func scaleColor2Brightness(color [3]byte) [3]byte {
+	scaledColor := [3]byte{color[0], color[1], color[2]}
+	for i, val := range color {
+		if colorBrightness == 255 {
+			continue //we are able to continue bc we set the value equal at the beginning
+		}
+		valf := float32(val)
+		scaler := float32(colorBrightness) / 255.0
+		scaledColor[i] = byte(valf * scaler)
+	}
+	return scaledColor
+}
+
+// find the index of the requested frequency.
 func computeFreqIdx(freq, sampleRate, pad int) int {
 	Fs := float64(sampleRate) * 2
 	coef := Fs / float64(pad)
@@ -398,16 +321,4 @@ func volumeAverage(vals []uint32) uint32 {
 		vol /= uint32(len(vals))
 	}
 	return vol
-}
-
-func chkFatal(e error, msg string) {
-	if e != nil {
-		log.Fatalln(msg+":", e)
-	}
-}
-
-func chkPrint(err error) {
-	if err != nil {
-		log.Println(err)
-	}
 }
