@@ -1,26 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 )
 
 func main() {
-	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
-		Port: 1234,
-		IP:   net.ParseIP("192.168.0.36"),
-	})
+	pc, err := net.ListenPacket("udp4", ":9999")
 	if err != nil {
-		fmt.Printf("Some error %v\n", err)
-		return
+		panic(err)
 	}
-
-	conn.Write([]byte{0})
+	defer pc.Close()
 
 	buf := make([]byte, 3)
 	for {
-		conn.ReadFromUDP(buf)
+		pc.ReadFrom(buf)
 		os.Stdout.Write(buf)
 	}
 }
