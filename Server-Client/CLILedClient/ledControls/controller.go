@@ -4,23 +4,18 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
 const (
 	brightness = 255 //max is 255
-	width      = 63
+	width      = 21
 	height     = 1
 	ledCounts  = width * height
 )
 
-const FPS = 30
-
 var ledController *ws2811.WS2811
-
-var fftAudioColor uint32 = 256 * 256 * 255
 
 func main() {
 	opt := ws2811.DefaultOptions
@@ -34,39 +29,24 @@ func main() {
 	checkError(ledController.Init())
 	defer ledController.Fini()
 
-	go readAudioAnalyserLoop()
-	go visualizerLoop()
-	for {
-		time.Sleep(time.Second)
-	}
-}
-
-func readAudioAnalyserLoop() {
-	for {
-		rgbColor := make([]uint8, 3)
-		os.Stdin.Read(rgbColor)
-		fftAudioColor = uint32(rgbColor[0])*256*256 + uint32(rgbColor[1])*256 + uint32(rgbColor[2])
-	}
-}
-
-func setLeds(color uint32) {
-	for i := 0; i < ledCounts; i++ {
-		ledController.Leds(0)[i] = color
-	}
+	visualizerLoop()
 }
 
 func visualizerLoop() {
 	log.Println("Visualizing")
+	rgbColor := make([]uint8, 3)
 	for {
-		setLeds(fftAudioColor)
+		os.Stdin.Read(rgbColor)
+		intColor := uint32(rgbColor[0])*256*256 + uint32(rgbColor[1])*256 + uint32(rgbColor[2])
+		for i := 0; i < ledCounts; i++ {
+			ledController.Leds(0)[i] = intColor
+		}
 		checkError(ledController.Render())
-		time.Sleep(time.Second / FPS)
 	}
 }
 
 func checkError(err error) {
 	if err != nil {
 		fmt.Println(err)
-		panic(err)
 	}
 }
