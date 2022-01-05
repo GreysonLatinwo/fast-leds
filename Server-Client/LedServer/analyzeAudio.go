@@ -136,7 +136,6 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 		ChkFatal(err, "cmd.Start()")
 
 		audioStreamBuffer := make([]int16, audioStreamBufferSize)
-
 		for streaming {
 			//read in audiostream to buffer
 			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
@@ -178,7 +177,7 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		return max
 	}
 
-	var redLowerFreq int = 0
+	var redLowerFreq int = 60
 	var greenLowerFreq int = 200
 	var blueLowerFreq int = 600
 	var blueupperFreq int = 2800
@@ -188,16 +187,24 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
 	blueupperIdx := computeFreqIdx(blueupperFreq, int(sampleRate), pad)
 
-	redFFTMax := findMax(pxx[redLowerIdx:greenLowerIdx])
-	greenFFTMax := findMax(pxx[greenLowerIdx:blueLowerIdx])
-	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx])
+	redFFTMax := findMax(pxx[redLowerIdx:greenLowerIdx]) * 0.9
+	greenFFTMax := findMax(pxx[greenLowerIdx:blueLowerIdx]) * 1.0
+	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.1
 
-	if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
-		redFFTMax *= 1.5
-	} else if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
+	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
 		blueFFTMax *= 1.5
 	} else if greenFFTMax > blueFFTMax && greenFFTMax > redFFTMax {
 		greenFFTMax *= 1.5
+	} else if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
+		redFFTMax *= 1.5
+	}
+
+	if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
+		redFFTMax *= 0.75
+	} else if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
+		blueFFTMax *= 0.75
+	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
+		greenFFTMax *= 0.75
 	}
 
 	fftColorBuffer = append(fftColorBuffer, []float64{redFFTMax, greenFFTMax, blueFFTMax})

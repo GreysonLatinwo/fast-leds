@@ -26,9 +26,7 @@ func InitComms() (chan []byte, error) {
 	}
 
 	go newClientListener(server)
-
 	go sendColor(server, colorUpdate)
-
 	go http.ListenAndServe(webServerPort, nil)
 
 	return colorUpdate, nil
@@ -36,7 +34,6 @@ func InitComms() (chan []byte, error) {
 
 //takes the color output and tells the network
 func sendColor(server *net.UDPConn, colorUpdate chan []byte) {
-	// set FPS limit
 	for {
 		color := <-colorUpdate
 		os.Stdout.Write(color)
