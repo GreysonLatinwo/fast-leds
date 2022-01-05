@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"math"
-	"net/http"
 	"os/exec"
 	"time"
 
@@ -26,75 +24,13 @@ var fftColorBuffer [][]float64
 var fftColorBufferSize int = 16
 var fftColorShift float64 = 0
 
-var colorBrightness byte = 255
-
-//initalize webServer
-func init() {
-	http.HandleFunc("/music/", func(rw http.ResponseWriter, r *http.Request) {
-		log.Println("Connection from", r.RemoteAddr, "Request:", r.URL.Path)
-		http.ServeFile(rw, r, "public/index.html")
-	})
-	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/style.css") })
-	http.HandleFunc("/music/app.js", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/app.js") })
-	http.HandleFunc("/music/getData", func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Set("Content-Type", "utf-8")
-		jsonOut, err := json.Marshal(struct {
-			Power []float64
-			Freq  []float64
-			Color []uint32 // [r,g,b]
-		}{
-			Power: pxx,
-			Freq:  freq,
-			Color: []uint32{uint32(fftColor[0]), uint32(fftColor[1]), uint32(fftColor[2])},
-		})
-		ChkPrint(err)
-		rw.Write(jsonOut)
-	})
-	http.HandleFunc("/music/setEnergyLevel", func(rw http.ResponseWriter, r *http.Request) {
-		energyLevel := r.URL.RawQuery
-		energyLevelInt, err := strconv.Atoi(energyLevel)
-		ChkPrint(err)
-		fftColorBufferSize = energyLevelInt
-	})
-	http.HandleFunc("/music/getVariables", func(rw http.ResponseWriter, r *http.Request) {
-		vars, err := json.Marshal(struct {
-			IsStreaming           bool
-			AudioStreamBufferSize int
-			FFTColorBufferSize    int
-			ColorShift            float64
-			ColorBrightness       byte
-		}{
-			IsStreaming:           streaming,
-			AudioStreamBufferSize: audioStreamBufferSize,
-			FFTColorBufferSize:    fftColorBufferSize,
-			ColorShift:            fftColorShift,
-			ColorBrightness:       colorBrightness,
-		})
-		ChkPrint(err)
-		rw.Write(vars)
-	})
-	http.HandleFunc("/music/setColorShift", func(rw http.ResponseWriter, r *http.Request) {
-		energyLevel := r.URL.RawQuery
-		energyLevelInt, err := strconv.Atoi(energyLevel)
-		ChkPrint(err)
-		fftColorShift = float64(energyLevelInt)
-	})
-	http.HandleFunc("/music/setColorBrightness", func(rw http.ResponseWriter, r *http.Request) {
-		energyLevel := r.URL.RawQuery
-		energyLevelInt, err := strconv.Atoi(energyLevel)
-		ChkPrint(err)
-		colorBrightness = byte(energyLevelInt)
-	})
-}
-
-// takes audio stream, analyses the audio and writes the output to color
-func main() {
-	go StartPulseAudio()
-	udpClients, err := InitComms()
-	ChkFatal(err, "Comms couldnt be initialized")
-	udpClients <- []byte{0, 0, 0}
-	ProcessAudioStream(pulse, colorUpdate)
-}
+var redLowerFreq int = 80
+var redUpperFreq int = 200
+var greenLowerFreq int = 160
+var greenUpperFreq int = 1000
+var blueLowerFreq int = 600
+var blueupperFreq int = 2800
+var colorBrightness float64 = 255
 
 // read audio stream and computes fft and color
 func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
@@ -126,14 +62,14 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 		log.Println("\tChannels map:", numChannels)
 
 		props, e := dev.MapString("PropertyList") // map[string]string
-		ChkPrint(e)
+		chkPrint(e)
 		log.Println(props["media.name"])
 
 		cmd := exec.Command("parec")
 		audioStreamReader, err := cmd.StdoutPipe()
-		ChkFatal(err, "cmd.StdoutPipe error")
+		chkFatal(err)
 		err = cmd.Start()
-		ChkFatal(err, "cmd.Start()")
+		chkFatal(err)
 
 		audioStreamBuffer := make([]int16, audioStreamBufferSize)
 		for streaming {
@@ -150,7 +86,7 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 			opt := &spectral.PwelchOptions{
 				NFFT:      numBins, //nfft should be power of 2
 				Pad:       numBins, //same as NFFT
-				Window:    window.Bartlett,
+				Window:    window.Blackman,
 				Scale_off: false,
 			}
 			pxx, freq = spectral.Pwelch(buffercomplex, float64(int(sampleRate)*len(numChannels)), opt)
@@ -177,34 +113,34 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		return max
 	}
 
-	var redLowerFreq int = 60
-	var greenLowerFreq int = 200
-	var blueLowerFreq int = 600
-	var blueupperFreq int = 2800
-
 	redLowerIdx := computeFreqIdx(redLowerFreq, int(sampleRate), pad)
+	redUpperIdx := computeFreqIdx(redUpperFreq, int(sampleRate), pad)
 	greenLowerIdx := computeFreqIdx(greenLowerFreq, int(sampleRate), pad)
+	greenUpperIdx := computeFreqIdx(greenUpperFreq, int(sampleRate), pad)
 	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
 	blueupperIdx := computeFreqIdx(blueupperFreq, int(sampleRate), pad)
 
-	redFFTMax := findMax(pxx[redLowerIdx:greenLowerIdx]) * 0.9
-	greenFFTMax := findMax(pxx[greenLowerIdx:blueLowerIdx]) * 1.0
-	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.1
+	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 2
+	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 2
+	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 2
 
 	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
-		blueFFTMax *= 1.5
+		blueFFTMax *= 3
+		greenFFTMax *= 2.25
 	} else if greenFFTMax > blueFFTMax && greenFFTMax > redFFTMax {
-		greenFFTMax *= 1.5
+		greenFFTMax *= 2.25
+		redFFTMax *= 1.75
 	} else if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
-		redFFTMax *= 1.5
+		redFFTMax *= 2
+		blueFFTMax *= 3
 	}
 
 	if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
-		redFFTMax *= 0.75
-	} else if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
-		blueFFTMax *= 0.75
+		redFFTMax *= 1.0
 	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
-		greenFFTMax *= 0.75
+		greenFFTMax *= 0.9
+	} else if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
+		blueFFTMax *= 0.8
 	}
 
 	fftColorBuffer = append(fftColorBuffer, []float64{redFFTMax, greenFFTMax, blueFFTMax})
@@ -230,32 +166,22 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	blueAvg = math.Min(blueAvg*1.5, 255)
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
-	fftColor = scaleColor2Brightness(rgbRotated)
-
+	rgbScaled := scaleColor2Brightness(rgbRotated)
+	fftColor = clamp(rgbScaled)
 	return fftColor
 }
 
 //************************Helper Func***************************
 
 // rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
-func rotateColor(rgb []float64, rotDeg float64) []byte {
+func rotateColor(rgb []float64, rotDeg float64) []float64 {
 	if rotDeg != 0 {
-		return []byte{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])}
+		return rgb
 	}
 
 	pi := 3.14159265
 	sqrtf := func(x float64) float64 {
 		return math.Sqrt(x)
-	}
-
-	clamp := func(v float64) byte {
-		if v < 0 {
-			return 0
-		}
-		if v > 255 {
-			return 255
-		}
-		return byte(v)
 	}
 
 	cosA := math.Cos(rotDeg * pi / 180) //convert degrees to radians
@@ -265,12 +191,12 @@ func rotateColor(rgb []float64, rotDeg float64) []byte {
 		{1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA), 1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA},
 		{1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA, 1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA)}}
 
-	out := []byte{0, 0, 0}
+	out := []float64{0, 0, 0}
 
 	//Use the rotation matrix to convert the RGB directly
-	out[2] = clamp(rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2])
-	out[0] = clamp(rgb[0]*matrix[0][0] + rgb[1]*matrix[0][1] + rgb[2]*matrix[0][2])
-	out[1] = clamp(rgb[0]*matrix[1][0] + rgb[1]*matrix[1][1] + rgb[2]*matrix[1][2])
+	out[2] = rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2]
+	out[0] = rgb[0]*matrix[0][0] + rgb[1]*matrix[0][1] + rgb[2]*matrix[0][2]
+	out[1] = rgb[0]*matrix[1][0] + rgb[1]*matrix[1][1] + rgb[2]*matrix[1][2]
 	return out
 }
 
@@ -289,17 +215,30 @@ func normalizePower(pxx []float64) []float64 {
 }
 
 // scale the color to the brightness
-func scaleColor2Brightness(color []byte) []byte {
-	scaledColor := []byte{color[0], color[1], color[2]}
+func scaleColor2Brightness(color []float64) []float64 {
+	scaledColor := color[:]
 	for i, val := range color {
 		if colorBrightness == 255 {
-			continue //we are able to continue bc we set the value equal at the beginning
+			break
 		}
-		valf := float32(val)
-		scaler := float32(colorBrightness) / 255.0
-		scaledColor[i] = byte(valf * scaler)
+		scaler := colorBrightness / 255
+		scaledColor[i] = val * scaler
 	}
 	return scaledColor
+}
+
+func clamp(rgb []float64) []byte {
+	clampedRgb := []byte{0, 0, 0}
+	for i, v := range rgb {
+		if v < 0 {
+			clampedRgb[i] = 0
+		} else if v > 255 {
+			clampedRgb[i] = 255
+		} else {
+			clampedRgb[i] = uint8(v)
+		}
+	}
+	return clampedRgb
 }
 
 // find the index of the requested frequency.

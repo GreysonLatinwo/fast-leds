@@ -18,15 +18,15 @@ func init() {
 	// Load pulseaudio DBus module if needed. This module is mandatory, but it
 	// can also be configured in system files. See package doc.
 	isLoaded, e := pulseaudio.ModuleIsLoaded()
-	ChkFatal(e, "test pulse dbus module is loaded")
+	chkFatal(e)
 	if !isLoaded {
 		e = pulseaudio.LoadModule()
-		ChkFatal(e, "load pulse dbus module")
+		chkFatal(e)
 	}
 
 	// Connect to the pulseaudio dbus service.
 	pulse, e = pulseaudio.New()
-	ChkPrint(e)
+	chkPrint(e)
 
 	// Create and register a first client.
 	app = &AppPulse{}
@@ -46,7 +46,7 @@ func StartPulseAudio() {
 
 //*************************Callback Event Func****************************
 
-// AppPulse is a client that connects 6 callbacks.
+// AppPulse is a client that connects 5 callbacks.
 //
 
 type AppPulse struct{}
@@ -77,20 +77,8 @@ func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
 	log.Println("playback stream removed:", path)
 }
 
-// DeviceVolumeUpdated is called when the volume has changed on a device.
-//
-func (ap *AppPulse) DeviceVolumeUpdated(path dbus.ObjectPath, values []uint32) {
-	log.Println("device volume updated:", path, values)
-}
-
 // DeviceActiveCardUpdated is called when active card has changed on a device.
 // i.e. headphones injected.
 func (ap *AppPulse) DeviceActiveCardUpdated(path dbus.ObjectPath, port dbus.ObjectPath) {
 	log.Println("device active card updated:", path, port)
-}
-
-// StreamVolumeUpdated is called when the volume has changed on a stream.
-//
-func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, values []uint32) {
-	log.Println("stream volume:", path, values)
 }
