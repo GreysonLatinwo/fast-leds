@@ -32,15 +32,23 @@ func main() {
 	visualizerLoop()
 }
 
+func setLeds(color uint32) {
+	for i := 0; i < ledCounts/2; i++ {
+		ledController.Leds(0)[i] = ledController.Leds(0)[i+1]
+	}
+	for i := ledCounts - 1; i > ledCounts/2; i-- {
+		ledController.Leds(0)[i] = ledController.Leds(0)[i-1]
+	}
+	ledController.Leds(0)[ledCounts/2] = color
+}
+
 func visualizerLoop() {
 	log.Println("Visualizing")
 	rgbColor := make([]uint8, 3)
 	for {
 		os.Stdin.Read(rgbColor)
 		intColor := uint32(rgbColor[0])*256*256 + uint32(rgbColor[1])*256 + uint32(rgbColor[2])
-		for i := 0; i < ledCounts; i++ {
-			ledController.Leds(0)[i] = intColor
-		}
+		setLeds(intColor)
 		checkError(ledController.Render())
 	}
 }

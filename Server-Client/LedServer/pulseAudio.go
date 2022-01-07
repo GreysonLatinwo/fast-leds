@@ -72,6 +72,18 @@ func (ap *AppPulse) NewPlaybackStream(path dbus.ObjectPath) {
 
 // PlaybackStreamRemoved is called when a playback stream is removed.
 //
+func (ap *AppPulse) DeviceVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
+	log.Println("Device Volume Updated:", path, vol)
+}
+
+// PlaybackStreamRemoved is called when a playback stream is removed.
+//
+func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
+	log.Println("Stream Volume Updated:", path, vol)
+}
+
+// PlaybackStreamRemoved is called when a playback stream is removed.
+//
 func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
 	streaming = false
 	log.Println("playback stream removed:", path)
@@ -81,4 +93,12 @@ func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
 // i.e. headphones injected.
 func (ap *AppPulse) DeviceActiveCardUpdated(path dbus.ObjectPath, port dbus.ObjectPath) {
 	log.Println("device active card updated:", path, port)
+}
+
+func (ap *AppPulse) FallbackSinkUpdated(path dbus.ObjectPath) {
+	log.Println("Fallback Sink Updated:", path)
+}
+
+func (ap *AppPulse) FallbackSinkUnset() {
+	log.Println("Fallback Sink Unset")
 }

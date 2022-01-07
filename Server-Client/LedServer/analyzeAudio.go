@@ -18,19 +18,26 @@ var pxx, freq []float64
 var streaming = true
 var audioStreamBufferSize = 1 << 10
 var numBins int = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
+var fftWindowType func(int) []float64 = window.Bartlett
 
 var fftColor = []byte{0, 0, 0}
-var fftColorBuffer [][]float64
-var fftColorBufferSize int = 16
+
+var fftRedBuffer []float64
+var fftGreenBuffer []float64
+var fftBlueBuffer []float64
+var fftRedBufferSize int = 16
+var fftGreenBufferSize int = 24
+var fftBlueBufferSize int = 20
 var fftColorShift float64 = 0
 
 var redLowerFreq int = 80
 var redUpperFreq int = 200
-var greenLowerFreq int = 160
+var greenLowerFreq int = 200
 var greenUpperFreq int = 1000
-var blueLowerFreq int = 600
+var blueLowerFreq int = 1000
 var blueupperFreq int = 2800
 var colorBrightness float64 = 255
+var colorOutScale float64 = 1.5
 
 // read audio stream and computes fft and color
 func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
@@ -86,7 +93,7 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 			opt := &spectral.PwelchOptions{
 				NFFT:      numBins, //nfft should be power of 2
 				Pad:       numBins, //same as NFFT
-				Window:    window.Blackman,
+				Window:    fftWindowType,
 				Scale_off: false,
 			}
 			pxx, freq = spectral.Pwelch(buffercomplex, float64(int(sampleRate)*len(numChannels)), opt)
@@ -94,15 +101,86 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 			pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
 			pxx = normalizePower(pxx)
 
-			colorOut := computeColor(pxx, sampleRate, opt.Pad)
+			colorOut := computeRGBColor(pxx, sampleRate, opt.Pad)
 			udpClients <- colorOut
 		}
 	}
 }
 
+func computeHueColor(pxx []float64, sampleRate uint32, pad int) []byte {
+
+	findMax := func(arr []float64) float64 {
+		max := 0.0
+		maxIdx := 0.0
+		for i, v := range arr {
+			if v > max {
+				max = v
+				maxIdx = float64(i)
+			}
+		}
+		return maxIdx
+	}
+
+	maxValueIdx := findMax(pxx)
+
+	hue := (maxValueIdx / float64(len(pxx))) * 360 //scale maxValueIdx to hue range
+
+	//add value to respective buffers and compute averages
+	fftRedBuffer = append(fftRedBuffer, hue)
+
+	if len(fftRedBuffer) > fftRedBufferSize {
+		rmCount := len(fftRedBuffer) - fftRedBufferSize
+		fftRedBuffer = fftRedBuffer[rmCount:]
+	}
+
+	var hueAvg float64 = 0
+
+	for _, fftVal := range fftRedBuffer {
+		hueAvg += fftVal
+	}
+
+	hueAvg /= float64(len(fftRedBuffer))
+
+	// [0,360], [0,100], [0,100]
+	hsl2rgb := func(h, s, l float64) (float64, float64, float64) {
+		l /= 100
+		var a = s * math.Min(l, 1-l) / 100
+		f := func(n float64) float64 {
+			k := math.Mod(n+h/30, 12)
+			color := l - a*math.Max(math.Min(math.Min(k-3, 9-k), 1), -1)
+			return math.Round(255 * color)
+		}
+		r := f(0)
+		g := f(8)
+		b := f(4)
+		return r, g, b
+	}
+
+	r, g, b := hsl2rgb(hueAvg, 100, pxx[int(maxValueIdx)]/255*100)
+
+	log.Print(r, g, b, hueAvg)
+
+	r *= colorOutScale
+	g *= colorOutScale
+	b *= colorOutScale
+
+	rgbRotated := rotateColor([]float64{r, g, b}, fftColorShift)
+	rgbScaled := scaleColor2Brightness(rgbRotated)
+	fftColor = clamp(rgbScaled)
+
+	return fftColor
+}
+
 // converts the pxx and freq to rgb values
 // and saves them to the 'fftColor' variable
-func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
+func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
+	redLowerIdx := computeFreqIdx(redLowerFreq, int(sampleRate), pad)
+	redUpperIdx := computeFreqIdx(redUpperFreq, int(sampleRate), pad)
+	greenLowerIdx := computeFreqIdx(greenLowerFreq, int(sampleRate), pad)
+	greenUpperIdx := computeFreqIdx(greenUpperFreq, int(sampleRate), pad)
+	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
+	blueupperIdx := computeFreqIdx(blueupperFreq, int(sampleRate), pad)
+
 	findMax := func(arr []float64) float64 {
 		max := 0.0
 		for _, v := range arr {
@@ -113,57 +191,66 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		return max
 	}
 
-	redLowerIdx := computeFreqIdx(redLowerFreq, int(sampleRate), pad)
-	redUpperIdx := computeFreqIdx(redUpperFreq, int(sampleRate), pad)
-	greenLowerIdx := computeFreqIdx(greenLowerFreq, int(sampleRate), pad)
-	greenUpperIdx := computeFreqIdx(greenUpperFreq, int(sampleRate), pad)
-	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
-	blueupperIdx := computeFreqIdx(blueupperFreq, int(sampleRate), pad)
-
-	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 2
-	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 2
-	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 2
+	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 1.25
+	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 1.33
+	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.33
 
 	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
-		blueFFTMax *= 3
-		greenFFTMax *= 2.25
+		blueFFTMax *= 2
+		greenFFTMax *= 1.5
 	} else if greenFFTMax > blueFFTMax && greenFFTMax > redFFTMax {
-		greenFFTMax *= 2.25
-		redFFTMax *= 1.75
+		greenFFTMax *= 2
+		redFFTMax *= 1.5
 	} else if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
 		redFFTMax *= 2
-		blueFFTMax *= 3
+		blueFFTMax *= 1.5
 	}
 
 	if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
 		redFFTMax *= 1.0
 	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
-		greenFFTMax *= 0.9
+		greenFFTMax *= 0.5
 	} else if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
-		blueFFTMax *= 0.8
-	}
-
-	fftColorBuffer = append(fftColorBuffer, []float64{redFFTMax, greenFFTMax, blueFFTMax})
-	if len(fftColorBuffer) > fftColorBufferSize {
-		rmCount := len(fftColorBuffer) - fftColorBufferSize
-		fftColorBuffer = fftColorBuffer[rmCount:]
+		blueFFTMax *= 0.5
 	}
 
 	var redAvg, greenAvg, blueAvg float64 = 0, 0, 0
 
-	for _, fftColorX := range fftColorBuffer {
-		redAvg += fftColorX[0]
-		greenAvg += fftColorX[1]
-		blueAvg += fftColorX[2]
+	//add value to respective buffers and compute averages
+	fftRedBuffer = append(fftRedBuffer, redFFTMax)
+	fftGreenBuffer = append(fftGreenBuffer, greenFFTMax)
+	fftBlueBuffer = append(fftBlueBuffer, blueFFTMax)
+
+	if len(fftRedBuffer) > fftRedBufferSize {
+		rmCount := len(fftRedBuffer) - fftRedBufferSize
+		fftRedBuffer = fftRedBuffer[rmCount:]
+	}
+	if len(fftGreenBuffer) > fftGreenBufferSize {
+		rmCount := len(fftGreenBuffer) - fftGreenBufferSize
+		fftGreenBuffer = fftGreenBuffer[rmCount:]
+	}
+	if len(fftBlueBuffer) > fftBlueBufferSize {
+		rmCount := len(fftBlueBuffer) - fftBlueBufferSize
+		fftBlueBuffer = fftBlueBuffer[rmCount:]
 	}
 
-	redAvg /= float64(len(fftColorBuffer))
-	greenAvg /= float64(len(fftColorBuffer))
-	blueAvg /= float64(len(fftColorBuffer))
+	for _, fftRedVal := range fftRedBuffer {
+		redAvg += fftRedVal
+	}
+	for _, fftGreenVal := range fftGreenBuffer {
+		greenAvg += fftGreenVal
+	}
+	for _, fftBlueVal := range fftBlueBuffer {
+		blueAvg += fftBlueVal
+	}
 
-	redAvg = math.Min(redAvg*1.5, 255)
-	greenAvg = math.Min(greenAvg*1.5, 255)
-	blueAvg = math.Min(blueAvg*1.5, 255)
+	redAvg /= float64(len(fftRedBuffer))
+	greenAvg /= float64(len(fftGreenBuffer))
+	blueAvg /= float64(len(fftBlueBuffer))
+
+	redAvg *= colorOutScale
+	greenAvg *= colorOutScale
+	blueAvg *= colorOutScale
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 	rgbScaled := scaleColor2Brightness(rgbRotated)
@@ -175,7 +262,7 @@ func computeColor(pxx []float64, sampleRate uint32, pad int) []byte {
 
 // rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
 func rotateColor(rgb []float64, rotDeg float64) []float64 {
-	if rotDeg != 0 {
+	if 0 >= rotDeg || rotDeg >= 360 {
 		return rgb
 	}
 
@@ -194,9 +281,9 @@ func rotateColor(rgb []float64, rotDeg float64) []float64 {
 	out := []float64{0, 0, 0}
 
 	//Use the rotation matrix to convert the RGB directly
-	out[2] = rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2]
 	out[0] = rgb[0]*matrix[0][0] + rgb[1]*matrix[0][1] + rgb[2]*matrix[0][2]
 	out[1] = rgb[0]*matrix[1][0] + rgb[1]*matrix[1][1] + rgb[2]*matrix[1][2]
+	out[2] = rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2]
 	return out
 }
 

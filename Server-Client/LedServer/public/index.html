@@ -4,7 +4,7 @@
       <title>Realtime Frequency Analytics</title>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:200">
       <link rel="stylesheet" href="./style.css">
-      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
           .strokeme
@@ -19,9 +19,34 @@
       </style>
       <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
       <script>
-        function setEnergyLevel(eLevel) {
+        const fftWindows = { 
+            1: "Bartlett", 
+            2: "Blackman" ,
+            3: "FlatTop" , 
+            4: "Hamming" ,
+            5: "Hann" , 
+            6: "Rectangular" ,
+        };
+
+        function setSliders(){
+            fetch('/music/getVariables')
+            .then((response) => {
+                response.json().then((responseJson) =>{
+                    console.log(responseJson)
+                    document.getElementById("cBrightness").value = responseJson['ColorBrightness']
+                    document.getElementById("redEnergy").value = responseJson['FFTRedBufferSize']
+                    document.getElementById("greenEnergy").value = responseJson['FFTGreenBufferSize']
+                    document.getElementById("blueEnergy").value = responseJson['FFTBlueBufferSize']
+                    document.getElementById("cShift").value = responseJson['ColorShift']
+                    document.getElementById("colorScale").value = responseJson['ColorScaler']
+                    document.getElementById("fftWindow").value = responseJson['FFTWindowType']
+                })
+            })
+        }
+
+        function setEnergyLevel(colorStr, eLevel) {
             let xmlHttpReq = new XMLHttpRequest();
-            xmlHttpReq.open("GET", "/music/setEnergyLevel?"+Number(eLevel));
+            xmlHttpReq.open("GET", "/music/setEnergyLevel?" + colorStr + ":" + Number(eLevel));
             xmlHttpReq.send();
         }
 
@@ -36,23 +61,52 @@
             xmlHttpReq.open("GET", "/music/setColorBrightness?"+Number(cBrightness));
             xmlHttpReq.send();
         }
+
+        function setFFTWindowType(windowInt) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setFFTWindow?"+Number(windowInt));
+            xmlHttpReq.send();
+        }
+
+        function setColorScale(scaleColor) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setColorScale?"+Number(scaleColor));
+            xmlHttpReq.send();
+        }
       </script>
   </head>
 
-  <body style="background-color: #7700FF;">
+  <body style="background-color: #7700FF;" onload="setSliders()">
 
     <div class="d-flex flex-row justify-content-between">
-    <div id="fftPlot"></div>
-    <div id="colorPlot"></div>
+        <div id="fftPlot"></div>
+        <div id="colorPlot"></div>
     </div>
-    
-    <div class="container">
-        <input type="range" class="form-range" value="16" min="1" max="100" id="eLevel" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Energy Level: '+this.value" onchange="setEnergyLevel(this.value)">
-        <output class="h3 strokeme">Set Energy Flow Level: 16</output>
-        <input type="range" class="form-range" value="0" min="0" max="360" id="cShift" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Color Shift: '+this.value" onchange="setColorShift(this.value)">
-        <output class="h3 strokeme">Set Color Shift: 0</output>
-        <input type="range" class="form-range" value="255" min="0" max="255" id="cShift" style="width: 95%;" oninput="this.nextElementSibling.value = 'Set Brightness: '+this.value" onchange="setColorBrightness(this.value)">
-        <output class="h3 strokeme">Set Max Brighness: 255</output>
+    <div class="container d-flex flex-row  justify-content-between">
+        <div class="container">
+            <label class="h5 strokeme text-danger" for="redEnergy">Red Energy Flow</label>
+            <input type="range" class="form-range" id="redEnergy" value="16" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Energy Flow: '+this.value" onchange="setEnergyLevel('red',this.value)">
+
+            <label class="h5 strokeme text-success" for="greenEnergy">Green Energy Flow</label>
+            <input type="range" class="form-range" id="greenEnergy" value="24" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Energy Flow: '+this.value" onchange="setEnergyLevel('green',this.value)">
+            
+            <label class="h5 strokeme text-primary" for="blueEnergy">Blue Energy Flow</label>
+            <input type="range" class="form-range" id="blueEnergy" value="20" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Energy Flow: '+this.value" onchange="setEnergyLevel('blue',this.value)">
+        </div>
+        
+        <div class="container">
+            <label class="h4 strokeme" for="cShift">Set Color Shift</label>
+            <input type="range" class="form-range" id="cShift" value="0" min="0" max="360" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Set Color Shift: '+this.value" onchange="setColorShift(this.value)">
+
+            <label class="h4 strokeme" for="cBrightness">Set Max Brightness</label>
+            <input type="range" class="form-range" id="cbrightness" value="255" min="0" max="255" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Set Max Brightness: '+this.value" onchange="setColorBrightness(this.value)">
+
+            <label class="h4 strokeme" for="colorScale">Scale Colors</label>
+            <input type="range" class="form-range" id="colorScale" step="0.1" value="1.5" min="0" max="5" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Scale Colors: '+this.value" onchange="setColorScale(this.value)">
+
+            <label class="h4 strokeme" for="fftWindow">Set FFT Window</label>
+            <input type="range" class="form-range" id="fftWindow" value="1" min="1" max="6" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Set FFT Window: '+fftWindows[this.value]" onchange="setFFTWindowType(this.value)">
+        </div>
     </div>
 
     <script>
@@ -83,7 +137,7 @@
         var layout1 = {
             width: window.innerWidth*0.33,
             height: window.innerHeight*0.66,
-            xaxis: {range: [-1, 3], title: "color"},
+            xaxis: {range: [-1, 3]},
             yaxis: {range: [0, 255], title: "power"},  
             title: "Color"
         };
