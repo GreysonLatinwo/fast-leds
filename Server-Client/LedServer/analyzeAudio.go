@@ -14,30 +14,28 @@ import (
 	"strconv"
 )
 
-var pxx, freq []float64
-var streaming = true
-var audioStreamBufferSize = 1 << 10
-var numBins int = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
-var fftWindowType func(int) []float64 = window.Bartlett
-
-var fftColor = []byte{0, 0, 0}
-
-var fftRedBuffer []float64
-var fftGreenBuffer []float64
-var fftBlueBuffer []float64
-var fftRedBufferSize int = 16
-var fftGreenBufferSize int = 24
-var fftBlueBufferSize int = 20
-var fftColorShift float64 = 0
-
-var redLowerFreq int = 80
-var redUpperFreq int = 200
-var greenLowerFreq int = 200
-var greenUpperFreq int = 1000
-var blueLowerFreq int = 1000
-var blueupperFreq int = 2800
-var colorBrightness float64 = 255
-var colorOutScale float64 = 1.5
+var (
+	pxx, freq             []float64
+	isStreaming           bool                = true
+	audioStreamBufferSize int                 = 1 << 10
+	numBins               int                 = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
+	fftWindowType         func(int) []float64 = window.Bartlett
+	fftRedBufferSize      int                 = 16
+	fftGreenBufferSize    int                 = 24
+	fftBlueBufferSize     int                 = 20
+	fftColorShift         float64             = 0
+	redLowerFreq          int                 = 80
+	redUpperFreq          int                 = 200
+	greenLowerFreq        int                 = 200
+	greenUpperFreq        int                 = 8000
+	blueLowerFreq         int                 = 800
+	blueupperFreq         int                 = 2800
+	colorOutScale         float64             = 1.5
+	fftColor              []byte              = []byte{0, 0, 0}
+	fftRedBuffer          []float64
+	fftGreenBuffer        []float64
+	fftBlueBuffer         []float64
+)
 
 // read audio stream and computes fft and color
 func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
@@ -74,12 +72,14 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 
 		cmd := exec.Command("parec")
 		audioStreamReader, err := cmd.StdoutPipe()
-		chkFatal(err)
+		if err != nil {
+			panic(err)
+		}
 		err = cmd.Start()
 		chkFatal(err)
 
 		audioStreamBuffer := make([]int16, audioStreamBufferSize)
-		for streaming {
+		for isStreaming {
 			//read in audiostream to buffer
 			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
 
@@ -107,70 +107,6 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 	}
 }
 
-func computeHueColor(pxx []float64, sampleRate uint32, pad int) []byte {
-
-	findMax := func(arr []float64) float64 {
-		max := 0.0
-		maxIdx := 0.0
-		for i, v := range arr {
-			if v > max {
-				max = v
-				maxIdx = float64(i)
-			}
-		}
-		return maxIdx
-	}
-
-	maxValueIdx := findMax(pxx)
-
-	hue := (maxValueIdx / float64(len(pxx))) * 360 //scale maxValueIdx to hue range
-
-	//add value to respective buffers and compute averages
-	fftRedBuffer = append(fftRedBuffer, hue)
-
-	if len(fftRedBuffer) > fftRedBufferSize {
-		rmCount := len(fftRedBuffer) - fftRedBufferSize
-		fftRedBuffer = fftRedBuffer[rmCount:]
-	}
-
-	var hueAvg float64 = 0
-
-	for _, fftVal := range fftRedBuffer {
-		hueAvg += fftVal
-	}
-
-	hueAvg /= float64(len(fftRedBuffer))
-
-	// [0,360], [0,100], [0,100]
-	hsl2rgb := func(h, s, l float64) (float64, float64, float64) {
-		l /= 100
-		var a = s * math.Min(l, 1-l) / 100
-		f := func(n float64) float64 {
-			k := math.Mod(n+h/30, 12)
-			color := l - a*math.Max(math.Min(math.Min(k-3, 9-k), 1), -1)
-			return math.Round(255 * color)
-		}
-		r := f(0)
-		g := f(8)
-		b := f(4)
-		return r, g, b
-	}
-
-	r, g, b := hsl2rgb(hueAvg, 100, pxx[int(maxValueIdx)]/255*100)
-
-	log.Print(r, g, b, hueAvg)
-
-	r *= colorOutScale
-	g *= colorOutScale
-	b *= colorOutScale
-
-	rgbRotated := rotateColor([]float64{r, g, b}, fftColorShift)
-	rgbScaled := scaleColor2Brightness(rgbRotated)
-	fftColor = clamp(rgbScaled)
-
-	return fftColor
-}
-
 // converts the pxx and freq to rgb values
 // and saves them to the 'fftColor' variable
 func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
@@ -191,9 +127,9 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		return max
 	}
 
-	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 1.25
-	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 1.33
-	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.33
+	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 1.2
+	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 1.3
+	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.4
 
 	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
 		blueFFTMax *= 2
@@ -253,8 +189,7 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	blueAvg *= colorOutScale
 
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
-	rgbScaled := scaleColor2Brightness(rgbRotated)
-	fftColor = clamp(rgbScaled)
+	fftColor = clamp(rgbRotated)
 	return fftColor
 }
 
@@ -299,19 +234,6 @@ func normalizePower(pxx []float64) []float64 {
 		}
 	}
 	return pxx
-}
-
-// scale the color to the brightness
-func scaleColor2Brightness(color []float64) []float64 {
-	scaledColor := color[:]
-	for i, val := range color {
-		if colorBrightness == 255 {
-			break
-		}
-		scaler := colorBrightness / 255
-		scaledColor[i] = val * scaler
-	}
-	return scaledColor
 }
 
 func clamp(rgb []float64) []byte {

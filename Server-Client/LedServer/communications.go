@@ -14,15 +14,21 @@ import (
 )
 
 const colorUpdateBufSize = 8
-const Gport = ":6969"
+const Gport = ":9001"
 const Gaddr = "192.168.0.255"
 
 var Uaddr *net.UDPAddr
 
 var colorUpdate = make(chan []byte, colorUpdateBufSize)
 
+type remoteLeds struct {
+	Server *net.UDPConn
+	Client *net.UDPAddr
+}
+
 //initalize webServer
 func init() {
+	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/favicon.ico") })
 	http.HandleFunc("/music/", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/index.html") })
 	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/style.css") })
 	http.HandleFunc("/music/app.js", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/app.js") })
@@ -92,17 +98,15 @@ func init() {
 			FFTBlueBufferSize     int
 			FFTWindowType         string
 			ColorShift            float64
-			ColorBrightness       float64
 			ColorScaler           float64
 		}{
-			IsStreaming:           streaming,
+			IsStreaming:           isStreaming,
 			AudioStreamBufferSize: audioStreamBufferSize,
 			FFTRedBufferSize:      fftRedBufferSize,
 			FFTGreenBufferSize:    fftGreenBufferSize,
 			FFTBlueBufferSize:     fftBlueBufferSize,
 			FFTWindowType:         windowType,
 			ColorShift:            fftColorShift,
-			ColorBrightness:       colorBrightness,
 			ColorScaler:           colorOutScale,
 		})
 		chkPrint(err)
@@ -115,14 +119,6 @@ func init() {
 			return
 		}
 		fftColorShift = colorShift
-	})
-	http.HandleFunc("/music/setColorBrightness", func(rw http.ResponseWriter, r *http.Request) {
-		brightness, err := strconv.ParseFloat(r.URL.RawQuery, 64)
-		if err != nil {
-			chkPrint(err)
-			return
-		}
-		colorBrightness = brightness
 	})
 	http.HandleFunc("/music/setColorScale", func(rw http.ResponseWriter, r *http.Request) {
 		scale, err := strconv.ParseFloat(r.URL.RawQuery, 64)
@@ -139,19 +135,29 @@ func InitComms() (chan []byte, error) {
 	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 	Uaddr = handleErrPrint(net.ResolveUDPAddr("udp4", Gaddr+Gport)).(*net.UDPAddr)
 
-	go colorServer(server, Uaddr, colorUpdate)
+	remote := remoteLeds{Server: server, Client: Uaddr}
+
+	go colorServer(remote, colorUpdate)
 
 	colorUpdate <- []byte{0, 0, 0}
 	return colorUpdate, nil
 }
 
 //takes the color output and tells the network
-func colorServer(server *net.UDPConn, Uaddr *net.UDPAddr, colorUpdate chan []byte) {
+func colorServer(remote remoteLeds, colorUpdate chan []byte) {
 	for color := range colorUpdate {
-		os.Stdout.Write(color)
-		_, err := server.WriteTo(color, Uaddr)
-		if err != nil {
-			panic(err)
-		}
+		writeToLocalLeds(color)
+		remote.writeToLeds(color)
+	}
+}
+
+func writeToLocalLeds(color []byte) {
+	os.Stdout.Write(color)
+}
+
+func (r remoteLeds) writeToLeds(color []byte) {
+	_, err := r.Server.WriteTo(color, r.Client)
+	if err != nil {
+		panic(err)
 	}
 }
