@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"math"
 	"net"
 	"net/http"
-	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -14,7 +14,7 @@ import (
 )
 
 const colorUpdateBufSize = 8
-const Gport = ":9001"
+const Gport = ":1234"
 const Gaddr = "192.168.0.255"
 
 var Uaddr *net.UDPAddr
@@ -28,10 +28,18 @@ type remoteLeds struct {
 
 //initalize webServer
 func init() {
-	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/favicon.ico") })
-	http.HandleFunc("/music/", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/index.html") })
-	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/style.css") })
-	http.HandleFunc("/music/app.js", func(rw http.ResponseWriter, r *http.Request) { http.ServeFile(rw, r, "public/app.js") })
+	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/favicon.ico")
+	})
+	http.HandleFunc("/music/", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/index.html")
+	})
+	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/style.css")
+	})
+	http.HandleFunc("/music/app.js", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/app.js")
+	})
 	http.HandleFunc("/music/getData", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "utf-8")
 		jsonOut, err := json.Marshal(struct {
@@ -86,6 +94,88 @@ func init() {
 			fftBlueBufferSize = energyLevelInt
 		}
 	})
+	http.HandleFunc("/music/setColorInScale", func(rw http.ResponseWriter, r *http.Request) {
+		scaleData := r.URL.RawQuery
+		scaleParsed := strings.Split(scaleData, "=")
+		scaleColor := scaleParsed[0]
+		scaleVal, err := strconv.ParseFloat(scaleParsed[1], 64)
+		if err != nil {
+			chkPrint(err)
+			return
+		}
+		switch strings.ToLower(scaleColor) {
+		case "red":
+			redInScale = scaleVal
+		case "green":
+			greenInScale = scaleVal
+		case "blue":
+			blueInScale = scaleVal
+		}
+	})
+	http.HandleFunc("/music/setOutColorScale", func(rw http.ResponseWriter, r *http.Request) {
+		scaleData := r.URL.RawQuery
+		scaleVal, err := strconv.ParseFloat(scaleData, 64)
+		if err != nil {
+			chkPrint(err)
+			return
+		}
+		colorOutScale = scaleVal
+	})
+	http.HandleFunc("/music/setColorFreqRange", func(rw http.ResponseWriter, r *http.Request) {
+		ColorFreqData := r.URL.RawQuery
+		ColorFreqParsed := strings.Split(ColorFreqData, ":")
+
+		ColorFreqColor := ColorFreqParsed[0]
+		ColorFreqType := strings.ToLower(ColorFreqParsed[1])
+		ColorFreqInt, err := strconv.Atoi(ColorFreqParsed[2])
+
+		if err != nil {
+			chkPrint(err)
+			return
+		}
+
+		//cap at the max freq outputted
+		ColorFreqInt = int(math.Min(float64(ColorFreqInt), float64(maxFreqOut)))
+
+		switch strings.ToLower(ColorFreqColor) {
+		case "red":
+			if ColorFreqType == "lower" {
+				if ColorFreqInt > redUpperFreq {
+					ColorFreqInt = redUpperFreq
+				}
+				redLowerFreq = ColorFreqInt
+			} else if ColorFreqType == "upper" {
+				if ColorFreqInt < redLowerFreq {
+					ColorFreqInt = redLowerFreq
+				}
+				redUpperFreq = ColorFreqInt
+			}
+		case "green":
+			if ColorFreqType == "lower" {
+				if ColorFreqInt > greenUpperFreq {
+					ColorFreqInt = greenUpperFreq
+				}
+				greenLowerFreq = ColorFreqInt
+			} else if ColorFreqType == "upper" {
+				if ColorFreqInt < greenLowerFreq {
+					ColorFreqInt = greenLowerFreq
+				}
+				greenUpperFreq = ColorFreqInt
+			}
+		case "blue":
+			if ColorFreqType == "lower" {
+				if ColorFreqInt > blueUpperFreq {
+					ColorFreqInt = blueUpperFreq
+				}
+				blueLowerFreq = ColorFreqInt
+			} else if ColorFreqType == "upper" {
+				if ColorFreqInt < blueLowerFreq {
+					ColorFreqInt = blueLowerFreq
+				}
+				blueUpperFreq = ColorFreqInt
+			}
+		}
+	})
 	http.HandleFunc("/music/getVariables", func(rw http.ResponseWriter, r *http.Request) {
 		fftWindowTypeSplit := strings.Split(runtime.FuncForPC(reflect.ValueOf(fftWindowType).Pointer()).Name(), ".")
 		windowType := fftWindowTypeSplit[len(fftWindowTypeSplit)-1]
@@ -99,8 +189,18 @@ func init() {
 			FFTWindowType         string
 			ColorShift            float64
 			ColorScaler           float64
+			RedInScale            float64
+			GreenInScale          float64
+			BlueInScale           float64
+			RedLowerFreq          int
+			RedUpperFreq          int
+			GreenLowerFreq        int
+			GreenUpperFreq        int
+			BlueLowerFreq         int
+			BlueUpperFreq         int
+			MaxFreqOut            int
 		}{
-			IsStreaming:           isStreaming,
+			IsStreaming:           streaming,
 			AudioStreamBufferSize: audioStreamBufferSize,
 			FFTRedBufferSize:      fftRedBufferSize,
 			FFTGreenBufferSize:    fftGreenBufferSize,
@@ -108,6 +208,16 @@ func init() {
 			FFTWindowType:         windowType,
 			ColorShift:            fftColorShift,
 			ColorScaler:           colorOutScale,
+			RedInScale:            redInScale,
+			GreenInScale:          greenInScale,
+			BlueInScale:           blueInScale,
+			RedLowerFreq:          redLowerFreq,
+			RedUpperFreq:          redUpperFreq,
+			GreenLowerFreq:        greenLowerFreq,
+			GreenUpperFreq:        greenUpperFreq,
+			BlueLowerFreq:         blueLowerFreq,
+			BlueUpperFreq:         blueUpperFreq,
+			MaxFreqOut:            maxFreqOut,
 		})
 		chkPrint(err)
 		rw.Write(vars)
@@ -120,39 +230,31 @@ func init() {
 		}
 		fftColorShift = colorShift
 	})
-	http.HandleFunc("/music/setColorScale", func(rw http.ResponseWriter, r *http.Request) {
-		scale, err := strconv.ParseFloat(r.URL.RawQuery, 64)
-		if err != nil {
-			chkPrint(err)
-			return
-		}
-		colorOutScale = scale
-	})
 }
 
-func InitComms() (chan []byte, error) {
+func StartComms() (chan []byte, error) {
 	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", Gport)).(*net.UDPAddr)
 	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 	Uaddr = handleErrPrint(net.ResolveUDPAddr("udp4", Gaddr+Gport)).(*net.UDPAddr)
 
 	remote := remoteLeds{Server: server, Client: Uaddr}
-
 	go colorServer(remote, colorUpdate)
-
 	colorUpdate <- []byte{0, 0, 0}
+
 	return colorUpdate, nil
 }
 
 //takes the color output and tells the network
 func colorServer(remote remoteLeds, colorUpdate chan []byte) {
 	for color := range colorUpdate {
-		writeToLocalLeds(color)
+		//writeToLocalLeds(color)
 		remote.writeToLeds(color)
 	}
 }
 
 func writeToLocalLeds(color []byte) {
-	os.Stdout.Write(color)
+	intColor := uint32(color[0])*0xffff + uint32(color[1])*0xff + uint32(color[2])
+	setLeds(intColor)
 }
 
 func (r remoteLeds) writeToLeds(color []byte) {
