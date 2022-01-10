@@ -15,32 +15,37 @@ import (
 )
 
 var (
-	pxx, freq             []float64
-	isStreaming           bool                = true
+	sampleRate            int                 = 44100
+	numChannels           int                 = 2
+	streaming             bool                = true
+	pxx, freq             []float64           = []float64{}, []float64{}
+	maxFreqOut            int                 = 3000
 	audioStreamBufferSize int                 = 1 << 10
 	numBins               int                 = 1 << 13 // number of bins for fft (number of datapoints across the output fft array)
 	fftWindowType         func(int) []float64 = window.Bartlett
-	fftRedBufferSize      int                 = 16
-	fftGreenBufferSize    int                 = 24
-	fftBlueBufferSize     int                 = 20
+	fftRedBufferSize      int                 = 12
+	fftGreenBufferSize    int                 = 32
+	fftBlueBufferSize     int                 = 16
 	fftColorShift         float64             = 0
 	redLowerFreq          int                 = 80
 	redUpperFreq          int                 = 200
 	greenLowerFreq        int                 = 200
-	greenUpperFreq        int                 = 8000
-	blueLowerFreq         int                 = 800
-	blueupperFreq         int                 = 2800
+	greenUpperFreq        int                 = 800
+	blueLowerFreq         int                 = 600
+	blueUpperFreq         int                 = maxFreqOut
+	redInScale            float64             = 1.25
+	greenInScale          float64             = 1.33
+	blueInScale           float64             = 1.5
 	colorOutScale         float64             = 1.5
 	fftColor              []byte              = []byte{0, 0, 0}
-	fftRedBuffer          []float64
-	fftGreenBuffer        []float64
-	fftBlueBuffer         []float64
+	fftRedBuffer          []float64           = []float64{}
+	fftGreenBuffer        []float64           = []float64{}
+	fftBlueBuffer         []float64           = []float64{}
+	isStreaming           chan bool           = make(chan bool, 1)
 )
 
 // read audio stream and computes fft and color
-func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
-	streams, _ := client.Core().ListPath("PlaybackStreams")
-	if len(streams) == 0 {
+func ProcessAudioStream(colorOut chan []byte) {
 		log.Println("Waiting for audio stream to process...")
 	}
 	for {
@@ -96,13 +101,14 @@ func ProcessAudioStream(client *pulseaudio.Client, udpClients chan []byte) {
 				Window:    fftWindowType,
 				Scale_off: false,
 			}
-			pxx, freq = spectral.Pwelch(buffercomplex, float64(int(sampleRate)*len(numChannels)), opt)
-			rangeFreq := computeFreqIdx(3000, int(sampleRate), opt.Pad)
+			pxx, freq = spectral.Pwelch(buffercomplex, float64(sampleRate*numChannels), opt)
+			rangeFreq := computeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
 			pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
 			pxx = normalizePower(pxx)
 
-			colorOut := computeRGBColor(pxx, sampleRate, opt.Pad)
-			udpClients <- colorOut
+			color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
+			colorOut <- color
+			log.Println(color)
 		}
 	}
 }
@@ -115,7 +121,7 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenLowerIdx := computeFreqIdx(greenLowerFreq, int(sampleRate), pad)
 	greenUpperIdx := computeFreqIdx(greenUpperFreq, int(sampleRate), pad)
 	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
-	blueupperIdx := computeFreqIdx(blueupperFreq, int(sampleRate), pad)
+	blueupperIdx := computeFreqIdx(blueUpperFreq, int(sampleRate), pad)
 
 	findMax := func(arr []float64) float64 {
 		max := 0.0
@@ -127,10 +133,12 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		return max
 	}
 
-	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * 1.2
-	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * 1.3
-	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * 1.4
+	//scale input colors bc fft values for higher freq sounds are not as strong
+	redFFTMax := findMax(pxx[redLowerIdx:redUpperIdx]) * redInScale
+	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * greenInScale
+	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * blueInScale
 
+	//make strongest value more prominent to exaggerate them in the leds
 	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
 		blueFFTMax *= 2
 		greenFFTMax *= 1.5
@@ -142,17 +150,12 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		blueFFTMax *= 1.5
 	}
 
-	if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
-		redFFTMax *= 1.0
-	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
-		greenFFTMax *= 0.5
-	} else if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
-		blueFFTMax *= 0.5
-	}
-
+	//we shouldnt have to recompute entire average every time
+	//update based on previous buffer
 	var redAvg, greenAvg, blueAvg float64 = 0, 0, 0
 
-	//add value to respective buffers and compute averages
+	// add value to respective buffers
+	// and resize buffer appropriately to maintain expected size
 	fftRedBuffer = append(fftRedBuffer, redFFTMax)
 	fftGreenBuffer = append(fftGreenBuffer, greenFFTMax)
 	fftBlueBuffer = append(fftBlueBuffer, blueFFTMax)
@@ -170,6 +173,7 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 		fftBlueBuffer = fftBlueBuffer[rmCount:]
 	}
 
+	// compute averages for all buffers
 	for _, fftRedVal := range fftRedBuffer {
 		redAvg += fftRedVal
 	}
@@ -184,6 +188,7 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenAvg /= float64(len(fftGreenBuffer))
 	blueAvg /= float64(len(fftBlueBuffer))
 
+	// scale output color by users request
 	redAvg *= colorOutScale
 	greenAvg *= colorOutScale
 	blueAvg *= colorOutScale
@@ -193,86 +198,13 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	return fftColor
 }
 
-//************************Helper Func***************************
-
-// rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
-func rotateColor(rgb []float64, rotDeg float64) []float64 {
-	if 0 >= rotDeg || rotDeg >= 360 {
-		return rgb
+func startAudioListening() io.ReadCloser {
+	cmd := exec.Command("parec")
+	audioStreamReader, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
 	}
-
-	pi := 3.14159265
-	sqrtf := func(x float64) float64 {
-		return math.Sqrt(x)
-	}
-
-	cosA := math.Cos(rotDeg * pi / 180) //convert degrees to radians
-	sinA := math.Sin(rotDeg * pi / 180) //convert degrees to radians
-	//calculate the rotation matrix, only depends on Hue
-	matrix := [][]float64{{cosA + (1.0-cosA)/3.0, 1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA, 1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA},
-		{1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA), 1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA},
-		{1.0/3.0*(1.0-cosA) - sqrtf(1.0/3.0)*sinA, 1.0/3.0*(1.0-cosA) + sqrtf(1.0/3.0)*sinA, cosA + 1.0/3.0*(1.0-cosA)}}
-
-	out := []float64{0, 0, 0}
-
-	//Use the rotation matrix to convert the RGB directly
-	out[0] = rgb[0]*matrix[0][0] + rgb[1]*matrix[0][1] + rgb[2]*matrix[0][2]
-	out[1] = rgb[0]*matrix[1][0] + rgb[1]*matrix[1][1] + rgb[2]*matrix[1][2]
-	out[2] = rgb[0]*matrix[2][0] + rgb[1]*matrix[2][1] + rgb[2]*matrix[2][2]
-	return out
-}
-
-// normalizes the fft power data
-func normalizePower(pxx []float64) []float64 {
-	var min = 0
-	for i := range pxx {
-		PDb := 20 * math.Log10(pxx[i])
-		if PDb < 0 {
-			pxx[i] = math.Max(PDb, float64(min))
-		} else {
-			pxx[i] = math.Max(PDb, float64(min))
-		}
-	}
-	return pxx
-}
-
-func clamp(rgb []float64) []byte {
-	clampedRgb := []byte{0, 0, 0}
-	for i, v := range rgb {
-		if v < 0 {
-			clampedRgb[i] = 0
-		} else if v > 255 {
-			clampedRgb[i] = 255
-		} else {
-			clampedRgb[i] = uint8(v)
-		}
-	}
-	return clampedRgb
-}
-
-// find the index of the requested frequency.
-func computeFreqIdx(freq, sampleRate, pad int) int {
-	Fs := float64(sampleRate) * 2
-	coef := Fs / float64(pad)
-	pos := float64(freq) / coef
-	return int(math.Round(pos))
-}
-
-func volumeText(mute bool, vals []uint32) string {
-	if mute {
-		return "muted"
-	}
-	vol := int(volumeAverage(vals)) * 100 / 65535
-	return " " + strconv.Itoa(vol) + "% "
-}
-
-func volumeAverage(vals []uint32) uint32 {
-	var vol uint32
-	if len(vals) > 0 {
-		for _, cur := range vals {
-			vol += cur
-		}
-		vol /= uint32(len(vals))
-	}
-	return vol
+	err = cmd.Start()
+	chkFatal(err)
+	return audioStreamReader
 }
