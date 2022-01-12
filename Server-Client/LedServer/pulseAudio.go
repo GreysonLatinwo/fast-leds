@@ -65,9 +65,18 @@ func (ap *AppPulse) SinkRemoved(path dbus.ObjectPath) {
 
 // NewPlaybackStream is called when a playback stream is added.
 //
-func (ap *AppPulse) NewPlaybackStream(path dbus.ObjectPath) {
-	isStreaming = true
-	log.Println("new playback stream:", path)
+func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
+	dev := pulse.Stream(streamPath)
+	_sampleRate, _ := dev.Uint32("SampleRate") // uint32
+	_numChannels, _ := dev.ListUint32("Channels")
+
+	sampleRate = int(_sampleRate)
+	numChannels = len(_numChannels)
+	isStreaming <- true
+	log.Println("new playback stream:", streamPath)
+	props, e := dev.MapString("PropertyList") // map[string]string
+	chkPrint(e)
+	log.Println(props["media.name"])
 }
 
 // PlaybackStreamRemoved is called when a playback stream is removed.
@@ -85,7 +94,7 @@ func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
 // PlaybackStreamRemoved is called when a playback stream is removed.
 //
 func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
-	isStreaming = false
+	streaming = false
 	log.Println("playback stream removed:", path)
 }
 

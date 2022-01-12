@@ -2,22 +2,21 @@ package main
 
 import (
 	"encoding/binary"
-	"math"
+	"io"
 	"os/exec"
-	"time"
 
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
 	"github.com/sqp/pulseaudio"
 
 	"log"
-	"strconv"
 )
 
 var (
+	streaming             bool                = false
+	listeningToMusic      bool                = true
 	sampleRate            int                 = 44100
 	numChannels           int                 = 2
-	streaming             bool                = true
 	pxx, freq             []float64           = []float64{}, []float64{}
 	maxFreqOut            int                 = 3000
 	audioStreamBufferSize int                 = 1 << 10
@@ -45,49 +44,20 @@ var (
 )
 
 // read audio stream and computes fft and color
-func ProcessAudioStream(colorOut chan []byte) {
-		log.Println("Waiting for audio stream to process...")
-	}
+func ProcessAudioStream(client *pulseaudio.Client, colorOut chan [4]byte) {
+	log.Println("Waiting for audio stream to process...")
+	audioStreamBuffer := make([]int16, audioStreamBufferSize)
+
 	for {
-		streams, _ = client.Core().ListPath("PlaybackStreams")
-		if len(streams) < 1 {
-			time.Sleep(time.Millisecond * 100)
-			continue
-		}
-		log.Println("Streams:", streams)
-		stream := streams[0]
-		log.Println("Stream found:", stream)
-		// Get the device to query properties for the stream referenced by his path.
-		dev := client.Stream(stream)
-
-		// Get some informations about this stream.
-		mute, _ := dev.Bool("Mute")               // bool
-		vols, _ := dev.ListUint32("Volume")       // []uint32
-		latency, _ := dev.Uint64("Latency")       // uint64
-		sampleRate, _ := dev.Uint32("SampleRate") // uint32
-		numChannels, _ := dev.ListUint32("Channels")
-		log.Println("\tstream:", volumeText(mute, vols))
-		log.Println("\tlatency:", latency)
-		log.Println("\tsampleRate:", sampleRate)
-		log.Println("\tChannels map:", numChannels)
-
-		props, e := dev.MapString("PropertyList") // map[string]string
-		chkPrint(e)
-		log.Println(props["media.name"])
-
-		cmd := exec.Command("parec")
-		audioStreamReader, err := cmd.StdoutPipe()
-		if err != nil {
-			panic(err)
-		}
-		err = cmd.Start()
-		chkFatal(err)
-
-		audioStreamBuffer := make([]int16, audioStreamBufferSize)
-		for isStreaming {
+		streaming = <-isStreaming
+		log.Println("Streaming:", streaming)
+		audioStreamReader := startAudioListening()
+		for streaming {
 			//read in audiostream to buffer
 			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
-
+			if !listeningToMusic {
+				continue //we have to make sure that we read all of the data while not listening
+			}
 			//convert buffer to float
 			buffercomplex := make([]float64, audioStreamBufferSize)
 			for i, v := range audioStreamBuffer {
@@ -107,8 +77,7 @@ func ProcessAudioStream(colorOut chan []byte) {
 			pxx = normalizePower(pxx)
 
 			color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
-			colorOut <- color
-			log.Println(color)
+			colorOut <- [4]byte{1, color[0], color[1], color[2]}
 		}
 	}
 }

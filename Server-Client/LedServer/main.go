@@ -14,9 +14,10 @@ func main() {
 	flag.Parse()
 
 	go StartPulseAudio()
-	udpClients, err := InitComms()
+	udpClients, err := StartComms()
 	chkFatal(err)
-	udpClients <- []byte{0, 0, 0}
+	udpClients <- [4]byte{1, 0, 0, 0}
 	go ProcessAudioStream(pulse, udpClients)
+	isStreaming <- true
 	chkPrint(http.ListenAndServe(fmt.Sprintf(":%d", *webServerPort), nil))
 }

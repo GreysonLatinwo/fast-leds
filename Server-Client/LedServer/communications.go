@@ -2,13 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"log"
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mjibson/go-dsp/window"
 )
@@ -19,7 +23,7 @@ const Gaddr = "192.168.0.255"
 
 var Uaddr *net.UDPAddr
 
-var colorUpdate = make(chan []byte, colorUpdateBufSize)
+var colorUpdate = make(chan [4]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
 	Server *net.UDPConn
@@ -28,11 +32,61 @@ type remoteLeds struct {
 
 //initalize webServer
 func init() {
+	http.HandleFunc("/static/", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/staticPicker.html")
+	})
+	http.HandleFunc("/preset/", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, "public/presetPicker.html")
+	})
+	http.HandleFunc("/preset/setPreset", func(rw http.ResponseWriter, r *http.Request) {
+		listeningToMusic = false
+		presetStr := r.URL.RawQuery
+		presetInt := 0
+		switch strings.ToLower(presetStr) {
+		case "confetti":
+			presetInt = 1
+		}
+
+		time.Sleep(time.Millisecond * 100)
+		colorUpdate <- [4]byte{3, byte(presetInt), 0, 0}
+		log.Println("preset:", presetStr)
+	})
+
+	http.HandleFunc("/static/setColor", func(rw http.ResponseWriter, r *http.Request) {
+		listeningToMusic = false
+		rBody, err := ioutil.ReadAll(r.Body)
+		chkPrint(err)
+		body := strings.Split(string(rBody), ",")
+		red, err := strconv.Atoi(body[0])
+		if err != nil {
+			return
+		}
+		green, err := strconv.Atoi(body[1])
+		if err != nil {
+			return
+		}
+		blue, err := strconv.Atoi(body[2])
+		if err != nil {
+			return
+		}
+		for i := 0; i < 4; i++ {
+			time.Sleep(time.Millisecond * 50)
+			colorUpdate <- [4]byte{2, byte(red), byte(green), byte(blue)}
+		}
+		log.Println("static color:", red, green, blue)
+	})
 	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, "public/favicon.ico")
 	})
 	http.HandleFunc("/music/", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, "public/index.html")
+		http.ServeFile(rw, r, "public/music.html")
+	})
+	http.HandleFunc("/music/start", func(rw http.ResponseWriter, r *http.Request) {
+		if !listeningToMusic {
+			listeningToMusic = true
+			isStreaming <- true
+		}
+		log.Println("Listening to music")
 	})
 	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, "public/style.css")
@@ -181,7 +235,6 @@ func init() {
 		windowType := fftWindowTypeSplit[len(fftWindowTypeSplit)-1]
 
 		vars, err := json.Marshal(struct {
-			IsStreaming           bool
 			AudioStreamBufferSize int
 			FFTRedBufferSize      int
 			FFTGreenBufferSize    int
@@ -200,7 +253,6 @@ func init() {
 			BlueUpperFreq         int
 			MaxFreqOut            int
 		}{
-			IsStreaming:           streaming,
 			AudioStreamBufferSize: audioStreamBufferSize,
 			FFTRedBufferSize:      fftRedBufferSize,
 			FFTGreenBufferSize:    fftGreenBufferSize,
@@ -232,34 +284,34 @@ func init() {
 	})
 }
 
-func StartComms() (chan []byte, error) {
+func StartComms() (chan [4]byte, error) {
 	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", Gport)).(*net.UDPAddr)
 	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 	Uaddr = handleErrPrint(net.ResolveUDPAddr("udp4", Gaddr+Gport)).(*net.UDPAddr)
 
 	remote := remoteLeds{Server: server, Client: Uaddr}
 	go colorServer(remote, colorUpdate)
-	colorUpdate <- []byte{0, 0, 0}
+	colorUpdate <- [4]byte{1, 0, 0, 0}
 
 	return colorUpdate, nil
 }
 
 //takes the color output and tells the network
-func colorServer(remote remoteLeds, colorUpdate chan []byte) {
+func colorServer(remote remoteLeds, colorUpdate chan [4]byte) {
 	for color := range colorUpdate {
-		//writeToLocalLeds(color)
-		remote.writeToLeds(color)
+		if color[0] != 1 && listeningToMusic {
+			listeningToMusic = false
+		}
+		go writeToLocalLeds(color)
+		go remote.writeToLeds(color)
 	}
 }
 
-func writeToLocalLeds(color []byte) {
-	intColor := uint32(color[0])*0xffff + uint32(color[1])*0xff + uint32(color[2])
-	setLeds(intColor)
+func writeToLocalLeds(color [4]byte) {
+	os.Stdout.Write(color[:])
 }
 
-func (r remoteLeds) writeToLeds(color []byte) {
-	_, err := r.Server.WriteTo(color, r.Client)
-	if err != nil {
-		panic(err)
-	}
+func (r remoteLeds) writeToLeds(color [4]byte) {
+	r.Server.WriteTo(color[:], r.Client)
+
 }

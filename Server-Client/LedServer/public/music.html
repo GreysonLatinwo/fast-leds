@@ -1,0 +1,395 @@
+<!DOCTYPE>
+<html>
+  <head>
+      <title>Realtime Frequency Analytics</title>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:200">
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+      <link href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css" rel="stylesheet">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+          .strokeme
+            {
+                color: white;
+                text-shadow:
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000;  
+            }
+      </style>
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script>
+        const musicEnergyTypes = {
+            1: "Very Low  ",
+            2: "Low       ",
+            3: "Moderate  ",
+            4: "High      ",
+            5: "Very High ",
+            6: "Ultra High",
+            7: "Seizure   ",
+        }
+
+        const fftWindows = { 
+            1: "Bartlett", 
+            2: "Blackman" ,
+            3: "FlatTop" , 
+            4: "Hamming" ,
+            5: "Hann" , 
+            6: "Rectangular" ,
+        };
+        const fftWindowsValues = { 
+            "Bartlett": 1, 
+            "Blackman": 2 ,
+            "FlatTop": 3 , 
+            "Hamming":4  ,
+            "Hann":5  , 
+            "Rectangular":6,
+        };
+
+        function setSliders(){
+            fetch('/music/getVariables')
+            .then((response) => {
+                response.json().then((responseJson) =>{
+                    console.log(responseJson)
+                    document.getElementById("easySettings").value = 4
+                    //set values
+                    document.getElementById("redEnergy").value = responseJson['FFTRedBufferSize']
+                    document.getElementById("greenEnergy").value = responseJson['FFTGreenBufferSize']
+                    document.getElementById("blueEnergy").value = responseJson['FFTBlueBufferSize']
+                    document.getElementById("cShift").value = responseJson['ColorShift']
+                    document.getElementById("colorScale").value = responseJson['ColorScaler']
+                    document.getElementById("fftWindow").value = fftWindowsValues[responseJson['FFTWindowType']]
+
+                    document.getElementById("redInScale").value = responseJson['RedInScale']
+                    document.getElementById("greenInScale").value = responseJson['GreenInScale']
+                    document.getElementById("blueInScale").value = responseJson['BlueInScale']
+                    document.getElementById("redFreqLowerRange").value = responseJson['RedLowerFreq']
+                    document.getElementById("redFreqUpperRange").value = responseJson['RedUpperFreq']
+                    document.getElementById("greenFreqLowerRange").value = responseJson['GreenLowerFreq']
+                    document.getElementById("greenFreqUpperRange").value = responseJson['GreenUpperFreq']
+                    document.getElementById("blueFreqLowerRange").value = responseJson['BlueLowerFreq']
+                    document.getElementById("blueFreqUpperRange").value = responseJson['BlueUpperFreq']
+
+
+                    //set labels
+                    document.getElementById("redEnergyLabel").innerHTML += responseJson['FFTRedBufferSize']
+                    document.getElementById("greenEnergyLabel").innerHTML += responseJson['FFTGreenBufferSize']
+                    document.getElementById("blueEnergyLabel").innerHTML += responseJson['FFTBlueBufferSize']
+                    document.getElementById("cShiftLabel").innerHTML += responseJson['ColorShift']
+                    document.getElementById("colorScaleLabel").innerHTML += responseJson['ColorScaler']
+                    document.getElementById("fftWindowLabel").innerHTML += responseJson['FFTWindowType']
+                    
+                    document.getElementById("redInScaleLabel").innerHTML += responseJson['RedInScale']
+                    document.getElementById("greenInScaleLabel").innerHTML += responseJson['GreenInScale']
+                    document.getElementById("blueInScaleLabel").innerHTML += responseJson['BlueInScale']
+                    document.getElementById("redFreqLowerRangeLabel").innerHTML += responseJson['RedLowerFreq']
+                    document.getElementById("redFreqUpperRangeLabel").innerHTML += responseJson['RedUpperFreq']
+                    document.getElementById("greenFreqLowerRangeLabel").innerHTML += responseJson['GreenLowerFreq']
+                    document.getElementById("greenFreqUpperRangeLabel").innerHTML += responseJson['GreenUpperFreq']
+                    document.getElementById("blueFreqLowerRangeLabel").innerHTML += responseJson['BlueLowerFreq']
+                    document.getElementById("blueFreqUpperRangeLabel").innerHTML += responseJson['BlueUpperFreq']
+                })
+            })
+        }
+
+        function setMusicEnergyTypes(energyLevel) {
+            console.log(musicEnergyTypes[energyLevel])
+            function updateMusicEnergyTypes(red, green, blue, fft) {
+                document.getElementById("redEnergy").value = red
+                document.getElementById("greenEnergy").value = green
+                document.getElementById("blueEnergy").value = blue
+                document.getElementById("fftWindow").value = fft
+
+                document.getElementById("redEnergyLabel").innerHTML = "Red Energy Flow: "+red
+                document.getElementById("greenEnergyLabel").innerHTML = "Green Energy Flow: "+green
+                document.getElementById("blueEnergyLabel").innerHTML = "Blue Energy Flow: "+blue
+                document.getElementById("fftWindowLabel").innerHTML = "FFT Window: "+fftWindows[fft]
+
+                setEnergyLevel('red', red)
+                setEnergyLevel('green', green)
+                setEnergyLevel('blue', blue)
+                setFFTWindowType(fft)
+            }
+            switch (Number(energyLevel)) {
+                case 1:
+                    //low red green and blue, fft hamming
+                    updateMusicEnergyTypes(50, 100, 75, 4)
+                    break;
+                case 2:
+                    //medium red low green and blue, fft bartlett
+                    updateMusicEnergyTypes(40, 60, 40, 4)
+                    break;
+                case 3:
+                    //high red low green medium blue, fft bartlett
+                    updateMusicEnergyTypes(20, 32, 20, 1)
+                    break;
+                case 4:
+                    //high red medium green high blue, fft bartlett
+                    updateMusicEnergyTypes(12, 32, 16, 1)
+                    break;
+                case 5:
+                    //high red high green high blue, fft rectangular
+                    updateMusicEnergyTypes(12, 12, 12, 6)
+                    setOutColorScale(1)
+                    break;
+                case 6:
+                    //1 red 1 green 1 blue, fft rectangular
+                    updateMusicEnergyTypes(4, 8, 6, 6)
+                    setOutColorScale(1)
+                    break;
+                case 7:
+                    //1 red 1 green 1 blue, fft rectangular
+                    updateMusicEnergyTypes(1, 1, 1, 6)
+                    break;
+            }
+        }
+
+        function setEnergyLevel(colorStr, eLevel) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setEnergyLevel?" + colorStr + ":" + Number(eLevel));
+            xmlHttpReq.send();
+        }
+
+        function setColorShift(cShift) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setColorShift?"+Number(cShift));
+            xmlHttpReq.send();
+        }
+
+        function setFFTWindowType(windowInt) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setFFTWindow?"+Number(windowInt));
+            xmlHttpReq.send();
+        }
+
+        function setOutColorScale(scaleColor) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setOutColorScale?"+Number(scaleColor));
+            xmlHttpReq.send();
+        }
+
+        function setInColorScale(color, scaleColor) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setColorInScale?"+color+"="+Number(scaleColor));
+            xmlHttpReq.send();
+        }
+
+        function setColorFreqRange(color, type, freqVal) {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/setColorFreqRange?"+color+":"+type+":"+freqVal);
+            xmlHttpReq.send();
+        }
+
+        function sendMusic() {
+            let xmlHttpReq = new XMLHttpRequest();
+            xmlHttpReq.open("GET", "/music/start");
+            xmlHttpReq.send();
+        }
+      </script>
+  </head>
+
+  <body style="background-color: #222;" onload="setSliders()">
+    <div class="d-flex justify-content-center" style="width: 100%; justify-self: center;">
+        <a href="/static" class="btn btn-Primary" role="button">Static Colors</a>
+        <a href="/preset" class="btn btn-Primary" role="button">Preset Colors</a>
+    </div>
+    <div class="d-flex flex-row justify-content-between">
+        <div id="fftPlot"></div>
+        <div id="colorPlot"></div>
+    </div>
+    <div class="container d-flex mt-2">
+        <button type="button" class="btn-lg btn-primary btn-block" id="send" onclick="sendMusic()">Follow the Music</button>
+    </div>
+
+    <div class="container mt-4">
+        <label class="h3 strokeme" for="easySettings" id="easySettingsLabel">Music Energy: High</label>
+        <input type="range" class="form-range" id="easySettings" value="1" min="1" max="7" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Music Energy: '+musicEnergyTypes[this.value]" onchange="setMusicEnergyTypes(this.value)">
+    </div>
+
+    <div class="container d-flex flex-row justify-content-around mt-4">
+        <div class="container">
+            <label class="h4 strokeme" for="cShift" id="cShiftLabel">Color Shift: </label>
+            <input type="range" class="form-range" id="cShift" value="0" min="0" max="360" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Color Shift: '+this.value" onchange="setColorShift(this.value)">
+        </div>
+        <div class="container">
+            <label class="h4 strokeme" for="colorScale" id="colorScaleLabel">Scale Colors: </label>
+            <input type="range" class="form-range" id="colorScale" step="0.1" value="1.5" min="0" max="5" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Scale Colors: '+this.value" onchange="setOutColorScale(this.value)">
+        </div>
+        <div class="container">
+            <label class="h4 strokeme" for="fftWindow" id="fftWindowLabel">FFT Window: </label>
+            <input type="range" class="form-range" id="fftWindow" value="1" min="1" max="6" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'FFT Window: '+fftWindows[this.value]" onchange="setFFTWindowType(this.value)">
+        </div>
+    </div>
+
+    <div class="container d-flex flex-row justify-content-around mt-4">
+        <div class="container">
+            <label class="h4 strokeme text-danger" for="redEnergy" id="redEnergyLabel">Red Energy Flow: </label>
+            <input type="range" class="form-range" id="redEnergy" value="16" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Energy Flow: '+this.value" onchange="setEnergyLevel('red',this.value)">
+        </div>
+        <div class="container">
+            <label class="h4 strokeme text-success" for="greenEnergy" id="greenEnergyLabel">Green Energy Flow: </label>
+            <input type="range" class="form-range" id="greenEnergy" value="24" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Energy Flow: '+this.value" onchange="setEnergyLevel('green',this.value)">
+        </div>
+        <div class="container">
+            <label class="h4 strokeme text-primary" for="blueEnergy" id="blueEnergyLabel">Blue Energy Flow: </label>
+            <input type="range" class="form-range" id="blueEnergy" value="20" min="1" max="100" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Energy Flow: '+this.value" onchange="setEnergyLevel('blue',this.value)">
+        </div>
+    </div>
+
+    <div class="container d-flex flex-row justify-content-between mt-4">
+        <div class="container">
+            <label class="h4 strokeme text-danger" for="redInScale" id="redInScaleLabel">Red Input Weight: </label>
+            <input type="range" class="form-range" id="redInScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Input Weight: '+this.value" onchange="setInColorScale('red',this.value)">
+        </div>
+        
+        <div class="container">
+            <label class="h4 strokeme text-success" for="greenInScale" id="greenInScaleLabel">Green Input Weight: </label>
+            <input type="range" class="form-range" id="greenInScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Input Weight: '+this.value" onchange="setInColorScale('green',this.value)">
+        </div>
+
+        <div class="container">
+            <label class="h4 strokeme text-primary" for="blueInScale" id="blueInScaleLabel">Blue Input Weight: </label>
+            <input type="range" class="form-range" id="blueInScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Input Weight: '+this.value" onchange="setInColorScale('blue',this.value)">
+        </div>
+    </div>
+
+    <div class="container d-flex flex-row justify-content-between mt-4">
+        <div class="container">
+            <label class="h4 strokeme text-danger" for="redFreqLowerRange" id="redFreqLowerRangeLabel">Red Lower Freq: </label>
+            <input type="range" class="form-range" id="redFreqLowerRange" value="80" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Lower Freq: '+this.value" onchange="setColorFreqRange('red','lower',this.value)">
+
+            <label class="h4 strokeme text-danger" for="redFreqUpperRange" id="redFreqUpperRangeLabel">Red Upper Freq: </label>
+            <input type="range" class="form-range" id="redFreqUpperRange" value="200" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Upper Freq: '+this.value" onchange="setColorFreqRange('red','upper',this.value)">
+        </div>
+
+        <div class="container">
+            <label class="h4 strokeme text-success" for="greenFreqLowerRange" id="greenFreqLowerRangeLabel">Green Lower Freq: </label>
+            <input type="range" class="form-range" id="greenFreqLowerRange" value="200" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Lower Freq: '+this.value" onchange="setColorFreqRange('Green','lower',this.value)">
+
+            <label class="h4 strokeme text-success" for="greenFreqUpperRange" id="greenFreqUpperRangeLabel">Green Upper Freq: </label>
+            <input type="range" class="form-range" id="greenFreqUpperRange" value="800" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Upper Freq: '+this.value" onchange="setColorFreqRange('Green','upper',this.value)">
+        </div>
+
+        <div class="container">
+            <label class="h4 strokeme text-primary" for="blueFreqLowerRange" id="blueFreqLowerRangeLabel">Blue Lower Freq: </label>
+            <input type="range" class="form-range" id="blueFreqLowerRange" value="800" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Lower Freq: '+this.value" onchange="setColorFreqRange('blue','lower',this.value)">
+
+            <label class="h4 strokeme text-primary" for="blueFreqUpperRange" id="blueFreqUpperRangeLabel">Blue Upper Freq: </label>
+            <input type="range" class="form-range" id="blueFreqUpperRange" value="3000" min="0" max="3000" step="10" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Upper Freq: '+this.value" onchange="setColorFreqRange('blue','upper',this.value)">
+        </div>
+    </div>
+
+    <script>
+        var fps = 12
+        const updateInterval = Math.trunc((1/fps)*1000)
+
+        var data = [{
+        x: [],
+        y: [],
+        type: "lines"
+        }];
+        var fftInitLayout = {
+            width: window.innerWidth*0.66,
+            height: window.innerHeight*0.66,
+            xaxis: {
+                range: [0, 2800], //48-4096
+                title: "Hz",
+            },
+            yaxis: {range: [-30, 150], title: "dB"},  
+            title: "FFT"
+        };
+
+        var data1 = [{
+        x: ['red', 'blue', 'green'],
+        y: [200, 50, 100],
+        type: 'bar'
+        }];
+        var colorInitLayout = {
+            width: window.innerWidth*0.33,
+            height: window.innerHeight*0.66,
+            xaxis: {range: [-1, 3]},
+            yaxis: {range: [0, 255], title: "power"},  
+            title: "Color"
+        };
+
+        // Display using Plotly
+        Plotly.newPlot("fftPlot", data, fftInitLayout);
+        Plotly.newPlot("colorPlot", data1, colorInitLayout);
+
+        function range(start, end) {
+            var ans = [];
+            for (let i = start; i < end; i++) {
+                ans.push(i);
+            }
+            return ans;
+        }
+
+        function pad(num, size) {
+            while (num.length < size) num = "0" + num;
+            return num;
+        }
+
+        function updateGraph(){
+            //get data
+            fetch('/music/getData', {
+                method: 'get',
+                mode: "no-cors"
+            })
+            .then(response => {
+                response.json().then(fftData => {
+                    r = fftData.Color[0].toString(16).toUpperCase()
+                    g = fftData.Color[1].toString(16).toUpperCase()
+                    b = fftData.Color[2].toString(16).toUpperCase()
+
+                    r = pad(r, 2)
+                    g = pad(g, 2)
+                    b = pad(b, 2)
+
+                    document.body.style.backgroundColor = "#"+r+g+b
+                    data = [{
+                        x: fftData.Freq,
+                        y: fftData.Power,
+                        type:"lines"
+                    }];
+                    var fftLayout = {
+                        width: window.innerWidth*0.66,
+                        height: window.innerHeight*0.66,
+                        xaxis: {
+                            range: [0, 2800], //48-4096
+                            title: "Hz",
+                        },
+                        yaxis: {range: [-30, 150], title: "dB"},  
+                        title: "FFT"
+                    };
+                    data1 = [{
+                        x: ['red', 'green', 'blue'],
+                        y: fftData.Color,
+                        type:'bar',
+                        marker:{
+                            color: ['rgba(255,0,0,1)', 'rgba(0,255,0,1)', 'rgba(0,0,255,1)']
+                        },
+                    }];
+                    var colorInitLayout = {
+                        width: window.innerWidth*0.33,
+                        height: window.innerHeight*0.66,
+                        xaxis: {range: [-1, 3]},
+                        yaxis: {range: [0, 255], title: "power"},  
+                        title: "Color"
+                    };
+                    
+                    Plotly.react("fftPlot", data, fftLayout)
+                    Plotly.react("colorPlot", data1, colorInitLayout)
+                })
+            });
+        }
+
+        myInterval = setInterval(updateGraph, updateInterval);
+
+    </script>
+  </body>
+</html>
