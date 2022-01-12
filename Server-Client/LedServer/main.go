@@ -13,11 +13,12 @@ func main() {
 	webServerPort = flag.Uint("port", 9001, "The port that the webserver will listem on.")
 	flag.Parse()
 
+	//start pulse audio callback listener
 	go StartPulseAudio()
-	udpClients, err := StartComms()
-	chkFatal(err)
-	udpClients <- [4]byte{1, 0, 0, 0}
-	go ProcessAudioStream(pulse, udpClients)
-	isStreaming <- true
+	//init webserver and start start listening led writes
+	chkFatal(StartComms())
+	//start listen for audio
+	go ProcessAudioStream()
+	//start web server
 	chkPrint(http.ListenAndServe(fmt.Sprintf(":%d", *webServerPort), nil))
 }

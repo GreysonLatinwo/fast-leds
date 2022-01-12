@@ -98,7 +98,7 @@ func volumeAverage(vals []uint32) uint32 {
 
 func printFPS() {
 	ticker := time.NewTicker(time.Minute)
-	quit := make(chan bool)
+	quit := make(chan struct{})
 	go func() {
 		for {
 			select {

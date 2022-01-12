@@ -23,7 +23,7 @@ const Gaddr = "192.168.0.255"
 
 var Uaddr *net.UDPAddr
 
-var colorUpdate = make(chan [4]byte, colorUpdateBufSize)
+var ledCommPipe = make(chan [4]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
 	Server *net.UDPConn
@@ -39,21 +39,29 @@ func init() {
 		http.ServeFile(rw, r, "public/presetPicker.html")
 	})
 	http.HandleFunc("/preset/setPreset", func(rw http.ResponseWriter, r *http.Request) {
-		listeningToMusic = false
+		if isProcessAudioStream {
+			stopMusicListening <- struct{}{}
+		}
 		presetStr := r.URL.RawQuery
 		presetInt := 0
 		switch strings.ToLower(presetStr) {
 		case "confetti":
 			presetInt = 1
+		case "sinelon":
+			presetInt = 2
+		case "juggle":
+			presetInt = 3
 		}
 
 		time.Sleep(time.Millisecond * 100)
-		colorUpdate <- [4]byte{3, byte(presetInt), 0, 0}
-		log.Println("preset:", presetStr)
+		ledCommPipe <- [4]byte{3, byte(presetInt), 0, 0}
+		log.Printf("Playing %s preset", presetStr)
 	})
 
 	http.HandleFunc("/static/setColor", func(rw http.ResponseWriter, r *http.Request) {
-		listeningToMusic = false
+		if isProcessAudioStream {
+			stopMusicListening <- struct{}{}
+		}
 		rBody, err := ioutil.ReadAll(r.Body)
 		chkPrint(err)
 		body := strings.Split(string(rBody), ",")
@@ -71,9 +79,9 @@ func init() {
 		}
 		for i := 0; i < 4; i++ {
 			time.Sleep(time.Millisecond * 50)
-			colorUpdate <- [4]byte{2, byte(red), byte(green), byte(blue)}
+			ledCommPipe <- [4]byte{2, byte(red), byte(green), byte(blue)}
 		}
-		log.Println("static color:", red, green, blue)
+		log.Println("Set Static color:", red, green, blue)
 	})
 	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, "public/favicon.ico")
@@ -82,10 +90,7 @@ func init() {
 		http.ServeFile(rw, r, "public/music.html")
 	})
 	http.HandleFunc("/music/start", func(rw http.ResponseWriter, r *http.Request) {
-		if !listeningToMusic {
-			listeningToMusic = true
-			isStreaming <- true
-		}
+		go ProcessAudioStream()
 		log.Println("Listening to music")
 	})
 	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) {
@@ -284,24 +289,21 @@ func init() {
 	})
 }
 
-func StartComms() (chan [4]byte, error) {
+func StartComms() error {
 	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", Gport)).(*net.UDPAddr)
 	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 	Uaddr = handleErrPrint(net.ResolveUDPAddr("udp4", Gaddr+Gport)).(*net.UDPAddr)
 
 	remote := remoteLeds{Server: server, Client: Uaddr}
-	go colorServer(remote, colorUpdate)
-	colorUpdate <- [4]byte{1, 0, 0, 0}
+	go colorServer(remote, ledCommPipe)
+	ledCommPipe <- [4]byte{1, 0, 0, 0}
 
-	return colorUpdate, nil
+	return nil
 }
 
 //takes the color output and tells the network
 func colorServer(remote remoteLeds, colorUpdate chan [4]byte) {
 	for color := range colorUpdate {
-		if color[0] != 1 && listeningToMusic {
-			listeningToMusic = false
-		}
 		go writeToLocalLeds(color)
 		go remote.writeToLeds(color)
 	}

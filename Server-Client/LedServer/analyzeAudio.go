@@ -2,19 +2,16 @@ package main
 
 import (
 	"encoding/binary"
-	"io"
 	"os/exec"
 
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
-	"github.com/sqp/pulseaudio"
 
 	"log"
 )
 
 var (
-	streaming             bool                = false
-	listeningToMusic      bool                = true
+	isProcessAudioStream  bool                = true
 	sampleRate            int                 = 44100
 	numChannels           int                 = 2
 	pxx, freq             []float64           = []float64{}, []float64{}
@@ -40,45 +37,53 @@ var (
 	fftRedBuffer          []float64           = []float64{}
 	fftGreenBuffer        []float64           = []float64{}
 	fftBlueBuffer         []float64           = []float64{}
-	isStreaming           chan bool           = make(chan bool, 1)
+	stopMusicListening    chan struct{}       = make(chan struct{})
 )
 
 // read audio stream and computes fft and color
-func ProcessAudioStream(client *pulseaudio.Client, colorOut chan [4]byte) {
+func ProcessAudioStream() {
+	isProcessAudioStream = true
 	log.Println("Waiting for audio stream to process...")
+
 	audioStreamBuffer := make([]int16, audioStreamBufferSize)
+	parecCmd := exec.Command("parec")
+	audioStreamReader, err := parecCmd.StdoutPipe()
+	chkPrint(err)
+	chkPrint(parecCmd.Start())
 
 	for {
-		streaming = <-isStreaming
-		log.Println("Streaming:", streaming)
-		audioStreamReader := startAudioListening()
-		for streaming {
-			//read in audiostream to buffer
-			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
-			if !listeningToMusic {
-				continue //we have to make sure that we read all of the data while not listening
+		//return when we are told
+		select {
+		case <-stopMusicListening:
+			isProcessAudioStream = false
+			if err := parecCmd.Process.Kill(); err != nil {
+				log.Fatal("failed to kill process: ", err)
 			}
-			//convert buffer to float
-			buffercomplex := make([]float64, audioStreamBufferSize)
-			for i, v := range audioStreamBuffer {
-				buffercomplex[i] = float64(v)
-			}
-
-			//FFT
-			opt := &spectral.PwelchOptions{
-				NFFT:      numBins, //nfft should be power of 2
-				Pad:       numBins, //same as NFFT
-				Window:    fftWindowType,
-				Scale_off: false,
-			}
-			pxx, freq = spectral.Pwelch(buffercomplex, float64(sampleRate*numChannels), opt)
-			rangeFreq := computeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
-			pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
-			pxx = normalizePower(pxx)
-
-			color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
-			colorOut <- [4]byte{1, color[0], color[1], color[2]}
+			return
+		default:
 		}
+		//read in audiostream to buffer
+		binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
+		//convert buffer to float
+		buffercomplex := make([]float64, audioStreamBufferSize)
+		for i, v := range audioStreamBuffer {
+			buffercomplex[i] = float64(v)
+		}
+
+		//FFT
+		opt := &spectral.PwelchOptions{
+			NFFT:      numBins, //nfft should be power of 2
+			Pad:       numBins, //same as NFFT
+			Window:    fftWindowType,
+			Scale_off: false,
+		}
+		pxx, freq = spectral.Pwelch(buffercomplex, float64(sampleRate*numChannels), opt)
+		rangeFreq := computeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
+		pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
+		pxx = normalizePower(pxx)
+
+		color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
+		ledCommPipe <- [4]byte{1, color[0], color[1], color[2]}
 	}
 }
 
@@ -165,15 +170,4 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 	fftColor = clamp(rgbRotated)
 	return fftColor
-}
-
-func startAudioListening() io.ReadCloser {
-	cmd := exec.Command("parec")
-	audioStreamReader, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-	err = cmd.Start()
-	chkFatal(err)
-	return audioStreamReader
 }

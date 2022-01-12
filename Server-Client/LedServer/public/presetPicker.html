@@ -54,15 +54,15 @@
             <div class="col justify-content-center" id="static">
                 <label>Choose Preset:</label>
                 <form>
-                    <select class="form-select form-select-lg" onchange="sendPreset(this.value)">
-                      <option value="">Option 1</option>
-                      <option value="confetti">Confetti</option>
-                      <option value="">Option 3</option>
+                    <select class="form-select form-select-lg" id="presetSelector" onchange="sendPreset(this.value)">
+                      <option value="Confetti">Confetti</option>
+                      <option value="Sinelon">Sinelon</option>
+                      <option value="Juggle">Juggle</option>
                       <option value="">Option 4</option>
                     </select>
                 </form>
                 <div class="d-flex">
-                    <button type="button" class="btn btn-primary btn-block" id="send" >Set Preset</button>
+                    <button type="button" class="btn btn-primary btn-block" id="send" onclick="sendPreset(document.getElementById('presetSelector').value)">Set Preset</button>
                 </div>
             </div>
         </div>

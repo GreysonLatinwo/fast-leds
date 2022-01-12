@@ -72,7 +72,6 @@ func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
 
 	sampleRate = int(_sampleRate)
 	numChannels = len(_numChannels)
-	isStreaming <- true
 	log.Println("new playback stream:", streamPath)
 	props, e := dev.MapString("PropertyList") // map[string]string
 	chkPrint(e)
@@ -94,7 +93,7 @@ func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
 // PlaybackStreamRemoved is called when a playback stream is removed.
 //
 func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
-	streaming = false
+	stopMusicListening <- struct{}{}
 	log.Println("playback stream removed:", path)
 }
 
