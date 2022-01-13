@@ -55,7 +55,7 @@ func init() {
 
 		time.Sleep(time.Millisecond * 100)
 		ledCommPipe <- [4]byte{3, byte(presetInt), 0, 0}
-		log.Printf("Playing %s preset", presetStr)
+		log.Println("Preset:", presetStr)
 	})
 
 	http.HandleFunc("/static/setColor", func(rw http.ResponseWriter, r *http.Request) {
@@ -81,7 +81,7 @@ func init() {
 			time.Sleep(time.Millisecond * 50)
 			ledCommPipe <- [4]byte{2, byte(red), byte(green), byte(blue)}
 		}
-		log.Println("Set Static color:", red, green, blue)
+		log.Println("Static color:", red, green, blue)
 	})
 	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, "public/favicon.ico")
@@ -106,8 +106,8 @@ func init() {
 			Freq  []float64
 			Color []uint32 // [r,g,b]
 		}{
-			Power: pxx,
-			Freq:  freq,
+			Power: pxx[:],
+			Freq:  freq[:],
 			Color: []uint32{uint32(fftColor[0]), uint32(fftColor[1]), uint32(fftColor[2])},
 		})
 		chkPrint(err)

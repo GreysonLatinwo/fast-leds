@@ -38,7 +38,7 @@ func parseRenderType(renderType string) error {
 		log.Print("Running Leds")
 	}
 	if centerIdx := Index(renderParams, "center"); centerIdx >= 0 {
-		log.Print("\t(Center)")
+		log.Print("\tCenter")
 		renderFunc = setRunningCenterLeds
 	}
 	// if the last value is a number then thats that chunk size
@@ -146,7 +146,6 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 		case <-killPreset:
 			presetDone <- struct{}{}
 			isPresetRunning = false
-			log.Println("Preset Exitted")
 			return
 		}
 	}

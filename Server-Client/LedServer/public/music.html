@@ -1,4 +1,3 @@
-<!DOCTYPE>
 <html>
   <head>
       <title>Realtime Frequency Analytics</title>
@@ -360,10 +359,10 @@
                         width: window.innerWidth*0.66,
                         height: window.innerHeight*0.66,
                         xaxis: {
-                            range: [0, 2800], //48-4096
+                            range: [0, 2800],
                             title: "Hz",
                         },
-                        yaxis: {range: [-30, 150], title: "dB"},  
+                        yaxis: {range: [-30, 150], title: "Power"},  
                         title: "FFT"
                     };
                     data1 = [{
@@ -388,7 +387,7 @@
             });
         }
 
-        myInterval = setInterval(updateGraph, updateInterval);
+        //myInterval = setInterval(updateGraph, updateInterval);
 
     </script>
   </body>
