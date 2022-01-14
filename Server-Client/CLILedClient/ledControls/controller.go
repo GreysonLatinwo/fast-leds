@@ -1,52 +1,188 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
-const (
-	brightness = 255 //max is 255
-	width      = 21
-	height     = 1
-	ledCounts  = width * height
+var (
+	brightness                    = 255 //0-255
+	ledCount                      = 148
+	renderFunc       func(uint32) = setStaticLeds
+	rotate                        = false
+	offset                        = 0.0
+	runningchunkSize int
+
+	isPresetRunning bool = false
 )
 
 var ledController *ws2811.WS2811
+var leds []uint32
+
+func parseRenderType(renderType string) error {
+	renderParams := strings.Split(renderType, "-")
+	runningchunkSize = ledCount
+	if Contains(renderParams, "static") {
+		renderFunc = setStaticLeds
+		log.Println("Static Leds")
+		return nil
+	}
+	if Contains(renderParams, "running") {
+		renderFunc = setRunningLeds
+		log.Print("Running Leds")
+	}
+	if centerIdx := Index(renderParams, "center"); centerIdx >= 0 {
+		log.Print("\tCenter")
+		renderFunc = setRunningCenterLeds
+	}
+	// if the last value is a number then thats that chunk size
+	if num, err := strconv.Atoi(renderParams[len(renderParams)-1]); err == nil {
+		runningchunkSize = num
+	}
+	if Contains(renderParams, "spinning") {
+		rotate = true
+	}
+	return nil
+}
 
 func main() {
+	flag.IntVar(&ledCount, "c", ledCount, "number of leds in the strip connected")
+	flag.IntVar(&brightness, "b", brightness, "Max brightness of the leds")
+	flag.Func("r", "Render Type (default static)\nstatic\nrunning[-spinning][-center][-#]\n(# is the chunk size of the pattern and if # omitted is equal to ledCount)\n", parseRenderType)
+	flag.Parse()
+
+	log.Println("\trunningchunkSize", runningchunkSize)
+	log.Println("\tledCount", ledCount)
+	log.Println("\tspinning", rotate)
+
 	opt := ws2811.DefaultOptions
 	opt.Channels[0].Brightness = brightness
-	opt.Channels[0].LedCount = ledCounts
+	opt.Channels[0].LedCount = ledCount
 
 	var err error
 	ledController, err = ws2811.MakeWS2811(&opt)
 	checkError(err)
-
 	checkError(ledController.Init())
 	defer ledController.Fini()
 
-	visualizerLoop()
+	leds = ledController.Leds(0)
+	setStaticLeds(RGBToInt(160, 0, 0))
+	ledController.Render()
+	go spinPresetHue()
+	renderLoop()
 }
 
-func visualizerLoop() {
-	log.Println("Visualizing")
-	rgbColor := make([]uint8, 3)
-	for {
-		os.Stdin.Read(rgbColor)
-		intColor := uint32(rgbColor[0])*256*256 + uint32(rgbColor[1])*256 + uint32(rgbColor[2])
-		for i := 0; i < ledCounts; i++ {
-			ledController.Leds(0)[i] = intColor
-		}
-		checkError(ledController.Render())
+func setLeds(color uint32) {
+	renderFunc(color)
+	if rotate {
+		offset += 0.1
 	}
 }
 
-func checkError(err error) {
-	if err != nil {
-		fmt.Println(err)
+func setStaticLeds(color uint32) {
+	for i := 0; i < ledCount; i++ {
+		leds[i] = color
+	}
+}
+
+func setRunningLeds(color uint32) {
+	//shift leds and set new color at beginning
+	for i := runningchunkSize - 1; i > 0; i-- {
+		leds[mod(i+int(offset), ledCount)] = leds[mod((i-1)+int(offset), ledCount)]
+	}
+	leds[int(offset)%ledCount] = color
+
+	//duplicate for the reset of the leds
+	for i := runningchunkSize; i < ledCount; i++ {
+		chunkPos := mod(i, runningchunkSize)
+		leds[mod(i+int(offset), ledCount)] = leds[mod(chunkPos+int(offset), ledCount)]
+	}
+}
+
+func setRunningCenterLeds(color uint32) {
+	//shift leds and set new color at center
+	for i := 0; i < runningchunkSize/2; i++ {
+		leds[mod(i+int(offset), ledCount)] = leds[mod(i+1+int(offset), ledCount)]
+	}
+	for i := runningchunkSize - 1; i > runningchunkSize/2; i-- {
+		leds[mod(i+int(offset), ledCount)] = leds[mod(i-1+int(offset), ledCount)]
+	}
+	leds[mod((runningchunkSize/2)+int(offset), ledCount)] = color
+
+	//duplicate for the reset of the leds
+	for i := runningchunkSize; i < ledCount; i++ {
+		chunkPos := mod(i, runningchunkSize)
+		leds[mod(i+int(offset), ledCount)] = leds[mod(chunkPos+int(offset), ledCount)]
+	}
+}
+
+func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan struct{}) {
+	presetFunc := confetti
+	switch presetData[1] {
+	case 0x1: // confetti
+		presetFunc = confetti
+	case 0x2: // sinelon
+		presetFunc = sinelon
+	case 0x3: // juggle
+		presetFunc = juggle
+	default: // invalid
+		log.Println("not valid preset")
+		return
+	}
+	//set fps
+	isPresetRunning = true
+	ticker := time.NewTicker(time.Second / time.Duration(150))
+
+	for {
+		<-ticker.C
+		select {
+		case <-ticker.C:
+			presetFunc()
+			ledController.Render()
+		case <-killPreset:
+			presetDone <- struct{}{}
+			isPresetRunning = false
+			return
+		}
+	}
+}
+
+func renderLoop() {
+	log.Println("Visualizing")
+	renderData := make([]uint8, 4)
+	killPreset := make(chan struct{})
+	presetDone := make(chan struct{})
+	for {
+		os.Stdin.Read(renderData)
+		// select led display type
+		switch renderData[0] {
+		case 0x1: // running
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			intColor := RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
+			setLeds(intColor)
+		case 0x2: // static
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			intColor := RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
+			setStaticLeds(intColor)
+		case 0x3: // preset
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			go runPreset(renderData, killPreset, presetDone)
+		}
+		checkError(ledController.Render())
 	}
 }
