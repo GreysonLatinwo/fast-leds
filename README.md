@@ -8,10 +8,10 @@ Assumptions:
     pulseaudio installed
 
 Installation:
-    sudo apt install bluez-tools pulseaudio-module-bluetooth
+    sudo apt install pulseaudio pavucontrol paprefs bluez-tools pulseaudio-module-bluetooth scons -y
     install go
         wget https://go.dev/dl/go1.17.5.linux-armv6l.tar.gz
-        rm -rf /usr/local/go && tar -C /usr/local -xzf go1.17.5.linux-armv6l.tar.gz
+        sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.17.5.linux-armv6l.tar.gz
         echo export\ PATH=$PATH:/usr/local/go/bin >> ~/.profile
         source ~/.profile
     install scons
