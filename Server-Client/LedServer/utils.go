@@ -94,8 +94,6 @@ func volumeAverage(vals []uint32) uint32 {
 	return vol
 }
 
-//**********************Error Handling************************
-
 func printFPS() {
 	ticker := time.NewTicker(time.Minute)
 	quit := make(chan struct{})
@@ -125,6 +123,8 @@ func Index(vs []string, t string) int {
 func Contains(vs []string, t string) bool {
 	return Index(vs, t) >= 0
 }
+
+//**********************Error Handling************************
 
 func handleErrPrint(out ...interface{}) interface{} {
 	if out[1] != nil {

@@ -7,16 +7,9 @@ import (
 
 var presetHue []float64 = []float64{255, 0, 0}
 
-func spinPresetHue() {
+func rotatePresetHue() {
 	t := time.NewTicker(time.Duration(time.Second / 30))
 	for {
-		//<-t.C
-		// rotDeg += 0.001
-		// r, g, b := HSLToRGB(rotDeg, 1, 0.5)
-		// presetHue[0], presetHue[1], presetHue[2] = r, g, b
-		// if rotDeg >= 1 {
-		// 	rotDeg = 0
-		// }
 		var r, g, b float64 = 255, 0, 0
 		for g = 0; g <= 255; g++ {
 			<-t.C
@@ -59,12 +52,13 @@ func fadeToBlackBy(_fadeby float64) {
 }
 
 //returns time since jan 1 1970
-func GET_MILLIS() float64 {
+func millis() float64 {
 	return float64(time.Now().UnixMilli())
 }
 
+//returns sawtooth wave at given bpm
 func beat16(BPM float64) float64 {
-	millis := GET_MILLIS()
+	millis := millis()
 	return (millis * BPM) / 60000
 }
 

@@ -72,7 +72,7 @@ func main() {
 	defer ledController.Fini()
 
 	leds = ledController.Leds(0)
-	go spinPresetHue()
+	go rotatePresetHue()
 	renderLoop()
 }
 
