@@ -23,7 +23,7 @@ const Gaddr = "192.168.0.255"
 
 var Uaddr *net.UDPAddr
 
-var ledCommPipe = make(chan [4]byte, colorUpdateBufSize)
+var ledCommPipe = make(chan [6]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
 	Server *net.UDPConn
@@ -54,7 +54,7 @@ func init() {
 		}
 
 		time.Sleep(time.Millisecond * 100)
-		ledCommPipe <- [4]byte{3, byte(presetInt), 0, 0}
+		ledCommPipe <- [6]byte{3, byte(presetInt), 0, 0, 0, 0}
 		log.Println("Preset:", presetStr)
 	})
 
@@ -79,7 +79,7 @@ func init() {
 		}
 		for i := 0; i < 4; i++ {
 			time.Sleep(time.Millisecond * 50)
-			ledCommPipe <- [4]byte{2, byte(red), byte(green), byte(blue)}
+			ledCommPipe <- [6]byte{2, byte(red), byte(green), byte(blue), 0, 0}
 		}
 		log.Println("Static color:", red, green, blue)
 	})
@@ -296,24 +296,24 @@ func StartComms() error {
 
 	remote := remoteLeds{Server: server, Client: Uaddr}
 	go colorServer(remote, ledCommPipe)
-	ledCommPipe <- [4]byte{1, 0, 0, 0}
+	ledCommPipe <- [6]byte{1, 0, 0, 0, 0, 0}
 
 	return nil
 }
 
 //takes the color output and tells the network
-func colorServer(remote remoteLeds, colorUpdate chan [4]byte) {
+func colorServer(remote remoteLeds, colorUpdate chan [6]byte) {
 	for color := range colorUpdate {
 		go writeToLocalLeds(color)
 		go remote.writeToLeds(color)
 	}
 }
 
-func writeToLocalLeds(color [4]byte) {
+func writeToLocalLeds(color [6]byte) {
 	os.Stdout.Write(color[:])
 }
 
-func (r remoteLeds) writeToLeds(color [4]byte) {
+func (r remoteLeds) writeToLeds(color [6]byte) {
 	r.Server.WriteTo(color[:], r.Client)
 
 }

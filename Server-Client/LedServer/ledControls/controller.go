@@ -121,14 +121,23 @@ func setRunningCenterLeds(color uint32) {
 }
 
 func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan struct{}) {
-	presetFunc := confetti
+	var presetFunc func(float64) = confetti
+	arg := 0.0
 	switch presetData[1] {
 	case 0x1: // confetti
 		presetFunc = confetti
+		arg = float64(presetData[5] / 255)
 	case 0x2: // sinelon
 		presetFunc = sinelon
+		arg = float64(presetData[5] / 255)
 	case 0x3: // juggle
 		presetFunc = juggle
+		arg = float64(presetData[5] / 255)
+	case 0x4: // spinning hue
+		h1, h2, h3 := float64(presetData[2])/255.0, float64(presetData[3])/255.0, float64(presetData[4]/255.0)
+		populateTempLeds(h1, h2, h3)
+		presetFunc = rotateLeds
+		arg = float64(presetData[5])
 	default: // invalid
 		log.Println("not valid preset")
 		return
@@ -141,7 +150,7 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 		<-ticker.C
 		select {
 		case <-ticker.C:
-			presetFunc()
+			presetFunc(arg)
 			ledController.Render()
 		case <-killPreset:
 			presetDone <- struct{}{}
@@ -153,7 +162,7 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 
 func renderLoop() {
 	log.Println("Visualizing")
-	renderData := make([]uint8, 4)
+	renderData := make([]uint8, 6)
 	killPreset := make(chan struct{})
 	presetDone := make(chan struct{})
 	for {

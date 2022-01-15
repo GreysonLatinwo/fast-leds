@@ -1,30 +1,18 @@
 package main
 
 import (
-	"log"
 	"os"
 	"testing"
 )
 
-func TestSpinningHues(t *testing.T) {
-	ledCount = 21
-	leds = make([]uint32, ledCount)
-	color1 := []float64{0, 255, 255}
-	color2 := []float64{170, 0, 255}
-	color3 := []float64{0, 255, 191}
-	generateSpinningHuesLeds(color1, color2, color3)
-
-	log.Println(leds)
-}
-
 func TestRotateLeds(t *testing.T) {
 	ledCount = 10
 	leds = make([]uint32, ledCount)
-	color1 := []float64{0, 255, 255}
-	color2 := []float64{170, 0, 255}
-	color3 := []float64{0, 255, 191}
+	hue1 := 0.5
+	hue2 := 0.75
+	hue3 := 1.0
 
-	leds = generateSpinningHuesLeds(color1, color2, color3)
+	populateTempLeds(hue1, hue2, hue3)
 	rotateLeds(60)
 }
 
