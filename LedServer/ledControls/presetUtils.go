@@ -7,11 +7,14 @@ import (
 
 var presetHue []float64 = []float64{255, 0, 0}
 
-func rotatePresetHue() {
+// rotate the presetHue variable
+// rps: rotations per seconds [0, Inf)
+func rotatePresetHue(rps float64) {
+	rpm := rps / 60
 	t := time.NewTicker(time.Duration(time.Second / 30))
 	for {
 		<-t.C
-		presetHue[0], presetHue[1], presetHue[2] = HSLToRGB(math.Mod(beat16(1), 1.0), 1, 0.5)
+		presetHue[0], presetHue[1], presetHue[2] = HSLToRGB(math.Mod(beat16(rpm), 1.0), 1, 0.5)
 	}
 }
 
