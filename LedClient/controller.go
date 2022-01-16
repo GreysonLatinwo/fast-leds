@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libp2p/go-libp2p"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
@@ -81,12 +80,7 @@ func main() {
 
 	leds = ledController.Leds(0)
 
-	//init mdns
-	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
-	if err != nil {
-		return
-	}
-	initMDNS(host, "fast-leds")
+	initMDNS("fast-leds")
 
 	//start rendering
 	renderLoop()
