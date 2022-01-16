@@ -137,7 +137,7 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 	fps := 150
 	switch presetData[1] {
 	case 0x1: // confetti
-		fps = 20
+		fps = 50
 		presetFunc = confetti
 		arg[0] = float64(presetData[5] / 255)
 	case 0x2: // sinelon

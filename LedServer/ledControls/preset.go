@@ -7,7 +7,7 @@ import (
 
 // random colored speckles that blink in and fade smoothly (default 0.1)
 func confetti(args []float64) {
-	fadeToBlackBy(0.2)
+	fadeToBlackBy(0.1)
 	pos := rand.Intn(ledCount)
 	randPresetHue := rotateColor(presetHue, rand.Float64()*64)
 	leds[pos] = RGBToInt(randPresetHue[0], randPresetHue[1], randPresetHue[2])
