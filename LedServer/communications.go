@@ -13,20 +13,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/peer"
+
 	"github.com/mjibson/go-dsp/window"
 )
 
 const colorUpdateBufSize = 8
-const Gport = ":1234"
-const Gaddr = "192.168.1.16"
+const UDPClientPort = ":1234"
 
 var Uaddr *net.UDPAddr
 
 var ledCommPipe = make(chan [6]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
-	Server *net.UDPConn
-	Client *net.UDPAddr
+	Server  *net.UDPConn
+	Clients []*net.UDPAddr
 }
 
 //initalize webServer
@@ -303,14 +305,32 @@ func init() {
 }
 
 func StartComms() error {
-	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", Gport)).(*net.UDPAddr)
-	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
-	Uaddr = handleErrPrint(net.ResolveUDPAddr("udp4", Gaddr+Gport)).(*net.UDPAddr)
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	if err != nil {
+		return err
+	}
+	peerChan := initMDNS(host, "fast-leds")
+	go listenForPeers(peerChan)
 
-	remote := remoteLeds{Server: server, Client: Uaddr}
+	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", UDPClientPort)).(*net.UDPAddr)
+	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
+
+	piClientNames := []string{"shelfmkiipi", "fireplacepi"}
+	piClients := make([]*net.UDPAddr, len(piClientNames))
+	for _, pi := range piClientNames {
+		piAddr := handleErrPrint(net.ResolveUDPAddr("udp4", pi+":0")).(*net.UDPAddr)
+		piClients = append(piClients, piAddr)
+	}
+	remote := remoteLeds{Server: server, Clients: piClients}
 	go colorServer(remote, ledCommPipe)
 
 	return nil
+}
+
+func listenForPeers(peerListen chan peer.AddrInfo) {
+	for peer := range peerListen {
+		log.Println(strings.Split(peer.Addrs[0].String(), "/"))
+	}
 }
 
 //takes the color output and tells the network
@@ -326,6 +346,7 @@ func writeToLocalLeds(color [6]byte) {
 }
 
 func (r remoteLeds) writeToLeds(color [6]byte) {
-	r.Server.WriteTo(color[:], r.Client)
-
+	for _, client := range r.Clients {
+		r.Server.WriteTo(color[:], client)
+	}
 }

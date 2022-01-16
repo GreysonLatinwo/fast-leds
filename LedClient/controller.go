@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
@@ -54,11 +55,13 @@ func parseRenderType(renderType string) error {
 }
 
 func main() {
+	//set and read flags
 	flag.IntVar(&ledCount, "c", ledCount, "number of leds in the strip connected")
 	flag.IntVar(&brightness, "b", brightness, "Max brightness of the leds")
 	flag.Func("r", "Render Type (default static)\nstatic\nrunning[-spinning][-center][-#]\n(# is the chunk size of the pattern and if # omitted is equal to ledCount)\n", parseRenderType)
 	flag.Parse()
 
+	//log startup vars
 	renderTypeName := runtime.FuncForPC(reflect.ValueOf(renderFunc).Pointer()).Name()
 	log.Println("RenderType", renderTypeName)
 	log.Println("\tledCount", ledCount)
@@ -66,10 +69,10 @@ func main() {
 	log.Println("\trunningchunkSize", runningchunkSize)
 	log.Println("\tspinning", rotate)
 
+	//init led strip
 	opt := ws2811.DefaultOptions
 	opt.Channels[0].Brightness = brightness
 	opt.Channels[0].LedCount = ledCount
-
 	var err error
 	ledController, err = ws2811.MakeWS2811(&opt)
 	checkError(err)
@@ -77,7 +80,15 @@ func main() {
 	defer ledController.Fini()
 
 	leds = ledController.Leds(0)
-	go rotatePresetHue()
+
+	//init mdns
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	if err != nil {
+		return
+	}
+	initMDNS(host, "fast-leds")
+
+	//start rendering
 	renderLoop()
 }
 
@@ -166,6 +177,7 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 }
 
 func renderLoop() {
+	go rotatePresetHue()
 	pc, err := net.ListenPacket("udp4", ":1234")
 	if err != nil {
 		panic(err)
