@@ -133,6 +133,24 @@ func renderLoop() {
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
 	presetFunc := confetti
+	runPreset := func() {
+		isPresetRunning = true
+		defer func() {
+			isPresetRunning = false
+			presetDone <- struct{}{}
+		}()
+		ticker := time.NewTicker(time.Second / time.Duration(presetFPS))
+		for {
+			<-ticker.C
+			select {
+			case <-ticker.C:
+				presetFunc(presetArgs)
+				ledController.Render()
+			case <-killPreset:
+				return
+			}
+		}
+	}
 	for {
 		os.Stdin.Read(renderData)
 		log.Println(renderData)
@@ -160,6 +178,7 @@ func renderLoop() {
 			presetFPS = 50
 			presetFunc = confetti
 			presetArgs[0] = float64(renderData[5]) / 255
+			go runPreset()
 		case 0x4: // sinelon
 			if isPresetRunning {
 				killPreset <- struct{}{}
@@ -167,6 +186,7 @@ func renderLoop() {
 			}
 			presetFunc = sinelon
 			presetArgs[0] = float64(renderData[5]) / 255
+			go runPreset()
 		case 0x5: // juggle
 			if isPresetRunning {
 				killPreset <- struct{}{}
@@ -174,6 +194,7 @@ func renderLoop() {
 			}
 			presetFunc = juggle
 			presetArgs[0] = float64(renderData[5]) / 255
+			go runPreset()
 		case 0x6: // spinning hue
 			if isPresetRunning {
 				killPreset <- struct{}{}
@@ -186,26 +207,8 @@ func renderLoop() {
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
 			presetFunc = rotatingHues
+			go runPreset()
 		}
-		// run preset
-		go func() {
-			isPresetRunning = true
-			defer func() {
-				isPresetRunning = false
-				presetDone <- struct{}{}
-			}()
-			ticker := time.NewTicker(time.Second / time.Duration(presetFPS))
-			for {
-				<-ticker.C
-				select {
-				case <-ticker.C:
-					presetFunc(presetArgs)
-					ledController.Render()
-				case <-killPreset:
-					return
-				}
-			}
-		}()
 		checkError(ledController.Render())
 	}
 }

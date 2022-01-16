@@ -45,33 +45,36 @@ func init() {
 		}
 		presetData := strings.Split(r.URL.RawQuery, ",")
 		presetStr := presetData[0]
-		presetInt := 0
-		args := []int{0, 0, 0, 0}
+		var presetInt uint8 = 0
+		args := []uint8{0, 0, 0, 0}
 		switch strings.ToLower(presetStr) {
 		case "confetti":
-			presetInt = 1
-		case "sinelon":
-			presetInt = 2
-		case "juggle":
 			presetInt = 3
+		case "sinelon":
+			presetInt = 4
+		case "juggle":
+			presetInt = 5
 		case "spinninghues":
-			if len(presetData) < 4 {
-				log.Println(r.URL.RawQuery)
+			if len(presetData) < 5 {
+				log.Println("Malformat:", r.URL.RawQuery)
 				return
 			}
-			presetInt = 4
-			args[0], _ = strconv.Atoi(presetData[1])
-			args[1], _ = strconv.Atoi(presetData[2])
-			args[2], _ = strconv.Atoi(presetData[3])
+			presetInt = 6
+			//hues
+			args[0] = uint8(handleErrPrint(strconv.Atoi(presetData[1])).(int))
+			args[1] = uint8(handleErrPrint(strconv.Atoi(presetData[2])).(int))
+			args[2] = uint8(handleErrPrint(strconv.Atoi(presetData[3])).(int))
+			//brightness [0,255]
+			args[3] = uint8(handleErrPrint(strconv.Atoi(presetData[4])).(int))
 		}
 
 		ledCommPipe <- [6]byte{
-			3,
-			uint8(presetInt),
-			uint8(args[0]),
-			uint8(args[1]),
-			uint8(args[2]),
-			uint8(args[3]),
+			presetInt,
+			args[0],
+			args[1],
+			args[2],
+			args[3],
+			0,
 		}
 	})
 

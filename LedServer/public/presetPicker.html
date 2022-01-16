@@ -66,12 +66,12 @@
                 color3 = document.getElementById("color3").value
                 brightness = document.getElementById("brightness").value
 
-                
+
 
                 hue1 = HEXtoHSL(color1).h
                 hue2 = HEXtoHSL(color2).h
                 hue3 = HEXtoHSL(color3).h
-                dataOut = [preset, Number(hue1/360*255).toFixed(0), Number(hue2/360*255).toFixed(0), Number(hue3/360*255).toFixed(0)]
+                dataOut = [preset, Number(hue1/360*255).toFixed(0), Number(hue2/360*255).toFixed(0), Number(hue3/360*255).toFixed(0), brightness]
                 dataStrOut = dataOut.join(",")
                 fetch('/preset/setPreset?'+dataStrOut, {
                     method: 'post',
