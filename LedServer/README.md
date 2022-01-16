@@ -31,5 +31,5 @@ Installation:
 
 Usage:
     run ./build.sh
-    run ./run.sh
+    run ./run.sh -h
     Webserver running on port 9001

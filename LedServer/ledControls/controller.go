@@ -126,6 +126,12 @@ func setRunningCenterLeds(color uint32) {
 }
 
 func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan struct{}) {
+	isPresetRunning = true
+	defer func() {
+		isPresetRunning = false
+		presetDone <- struct{}{}
+	}()
+
 	var presetFunc func([]float64) = confetti
 	arg := make([]float64, 5)
 	fps := 150
@@ -147,8 +153,8 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 		log.Println("not valid preset")
 		return
 	}
+
 	//set fps
-	isPresetRunning = true
 	ticker := time.NewTicker(time.Second / time.Duration(fps))
 
 	for {
@@ -158,8 +164,6 @@ func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan str
 			presetFunc(arg)
 			ledController.Render()
 		case <-killPreset:
-			presetDone <- struct{}{}
-			isPresetRunning = false
 			return
 		}
 	}
@@ -194,6 +198,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
+			isPresetRunning = true
 			go runPreset(renderData, killPreset, presetDone)
 		}
 		checkError(ledController.Render())
