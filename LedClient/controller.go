@@ -130,50 +130,6 @@ func setRunningCenterLeds(color uint32) {
 	}
 }
 
-func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan struct{}) {
-	isPresetRunning = true
-	defer func() {
-		isPresetRunning = false
-		presetDone <- struct{}{}
-	}()
-
-	var presetFunc func([]float64) = confetti
-	arg := make([]float64, 5)
-	fps := 150
-	switch presetData[1] {
-	case 0x1: // confetti
-		fps = 50
-		presetFunc = confetti
-		arg[0] = float64(presetData[5] / 255)
-	case 0x2: // sinelon
-		presetFunc = sinelon
-		arg[0] = float64(presetData[5] / 255)
-	case 0x3: // juggle
-		presetFunc = juggle
-		arg[0] = float64(presetData[5] / 255)
-	case 0x4: // spinning hue
-		arg[0], arg[1], arg[2], arg[3] = float64(presetData[2])/255.0, float64(presetData[3])/255.0, float64(presetData[4])/255.0, float64(presetData[5])
-		presetFunc = rotatingHues
-	default: // invalid
-		log.Println("not valid preset")
-		return
-	}
-
-	//set fps
-	ticker := time.NewTicker(time.Second / time.Duration(fps))
-
-	for {
-		<-ticker.C
-		select {
-		case <-ticker.C:
-			presetFunc(arg)
-			ledController.Render()
-		case <-killPreset:
-			return
-		}
-	}
-}
-
 func renderLoop() {
 	go rotatePresetHue()
 	pc, err := net.ListenPacket("udp4", ":1234")
