@@ -177,6 +177,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	for {
 		pc.ReadFrom(renderData)
+		log.Println(renderData)
 		// select led display type
 		switch renderData[0] {
 		case 0x1: // running
