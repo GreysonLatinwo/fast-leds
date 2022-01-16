@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	brightness                    = 255 //0-255
-	ledCount                      = 148
+	brightness                    = 200 //0-255
+	ledCount                      = 21
 	renderFunc       func(uint32) = setStaticLeds
 	rotate                        = false
 	offset                        = 0.0
