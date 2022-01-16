@@ -47,9 +47,8 @@ func rotatingHues(args []float64) {
 	var hue1, hue2, hue3 float64 = args[0], args[1], args[2]
 	var bps float64 = args[3]
 	if bps == 0 {
-		bps = 6
+		bps = 2
 	}
-	bpm := bps / 60
 	//build rgb colors
 	c1r, c1g, c1b := HSLToRGB(hue1, 1, 0.5)
 	color1 := []float64{c1r, c1g, c1b}
@@ -58,7 +57,7 @@ func rotatingHues(args []float64) {
 	c3r, c3g, c3b := HSLToRGB(hue3, 1, 0.5)
 	color3 := []float64{c3r, c3g, c3b}
 
-	offset := math.Mod(beat16(bpm*float64(ledCount)), float64(ledCount))
+	offset := math.Mod(beat16(bps), float64(ledCount))
 	palette := [][]float64{color1, color2, color3}
 	for i := 0; i < ledCount; i++ {
 		r, g, b := paletteLookup(palette, offset+(float64(i)/float64(ledCount)))
