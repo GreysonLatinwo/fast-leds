@@ -45,16 +45,15 @@ func juggle(args []float64) {
 
 func rotatingHues(args []float64) {
 	var hue1, hue2, hue3 float64 = args[0], args[1], args[2]
-	var bps float64 = args[3]
-	if bps == 0 {
-		bps = 2
-	}
+	var brightness float64 = args[3]
+	bps := 2.0
+
 	//build rgb colors
-	c1r, c1g, c1b := HSLToRGB(hue1, 1, 0.5)
+	c1r, c1g, c1b := HSLToRGB(hue1, 1, 0.5*brightness)
 	color1 := []float64{c1r, c1g, c1b}
-	c2r, c2g, c2b := HSLToRGB(hue2, 1, 0.5)
+	c2r, c2g, c2b := HSLToRGB(hue2, 1, 0.5*brightness)
 	color2 := []float64{c2r, c2g, c2b}
-	c3r, c3g, c3b := HSLToRGB(hue3, 1, 0.5)
+	c3r, c3g, c3b := HSLToRGB(hue3, 1, 0.5*brightness)
 	color3 := []float64{c3r, c3g, c3b}
 
 	offset := math.Mod(beat16(bps), float64(ledCount))

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"math"
 )
 
@@ -114,6 +114,6 @@ func mod(a, b int) int {
 
 func checkError(err error) {
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }

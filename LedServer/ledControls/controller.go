@@ -125,55 +125,14 @@ func setRunningCenterLeds(color uint32) {
 	}
 }
 
-func runPreset(presetData []uint8, killPreset chan struct{}, presetDone chan struct{}) {
-	isPresetRunning = true
-	defer func() {
-		isPresetRunning = false
-		presetDone <- struct{}{}
-	}()
-
-	var presetFunc func([]float64) = confetti
-	arg := make([]float64, 5)
-	fps := 150
-	switch presetData[1] {
-	case 0x1: // confetti
-		fps = 50
-		presetFunc = confetti
-		arg[0] = float64(presetData[5] / 255)
-	case 0x2: // sinelon
-		presetFunc = sinelon
-		arg[0] = float64(presetData[5] / 255)
-	case 0x3: // juggle
-		presetFunc = juggle
-		arg[0] = float64(presetData[5] / 255)
-	case 0x4: // spinning hue
-		arg[0], arg[1], arg[2], arg[3] = float64(presetData[2])/255.0, float64(presetData[3])/255.0, float64(presetData[4])/255.0, float64(presetData[5])
-		presetFunc = rotatingHues
-	default: // invalid
-		log.Println("not valid preset")
-		return
-	}
-
-	//set fps
-	ticker := time.NewTicker(time.Second / time.Duration(fps))
-
-	for {
-		<-ticker.C
-		select {
-		case <-ticker.C:
-			presetFunc(arg)
-			ledController.Render()
-		case <-killPreset:
-			return
-		}
-	}
-}
-
 func renderLoop() {
 	log.Println("Visualizing")
 	renderData := make([]uint8, 6)
 	killPreset := make(chan struct{})
 	presetDone := make(chan struct{})
+	presetFPS := 150
+	presetArgs := make([]float64, 6)
+	presetFunc := confetti
 	for {
 		os.Stdin.Read(renderData)
 		log.Println(renderData)
@@ -193,14 +152,60 @@ func renderLoop() {
 			}
 			intColor := RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
 			setStaticLeds(intColor)
-		case 0x3: // preset
+		case 0x3: // confetti
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			isPresetRunning = true
-			go runPreset(renderData, killPreset, presetDone)
+			presetFPS = 50
+			presetFunc = confetti
+			presetArgs[0] = float64(renderData[5]) / 255
+		case 0x4: // sinelon
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			presetFunc = sinelon
+			presetArgs[0] = float64(renderData[5]) / 255
+		case 0x5: // juggle
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			presetFunc = juggle
+			presetArgs[0] = float64(renderData[5]) / 255
+		case 0x6: // spinning hue
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			//color
+			presetArgs[0] = float64(renderData[1]) / 255
+			presetArgs[1] = float64(renderData[2]) / 255
+			presetArgs[2] = float64(renderData[3]) / 255
+			//brightness
+			presetArgs[3] = float64(renderData[4]) / 255
+			presetFunc = rotatingHues
 		}
+		// run preset
+		go func() {
+			isPresetRunning = true
+			defer func() {
+				isPresetRunning = false
+				presetDone <- struct{}{}
+			}()
+			ticker := time.NewTicker(time.Second / time.Duration(presetFPS))
+			for {
+				<-ticker.C
+				select {
+				case <-ticker.C:
+					presetFunc(presetArgs)
+					ledController.Render()
+				case <-killPreset:
+					return
+				}
+			}
+		}()
 		checkError(ledController.Render())
 	}
 }

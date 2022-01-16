@@ -9,6 +9,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
         <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script>
             function HEXtoRGB(hex) {
                 hex = hex.replace(/#/g, '');
@@ -53,7 +54,7 @@
     </head>
     <body style="background-color:#222222; color: white">
         <br>
-        <div class="d-flex justify-content-center" style="width: 100%; justify-self: center;">
+        <div class="d-flex justify-content-around" style="width: 100%; justify-self: center;">
             <a href="/music" class="btn btn-Primary" role="button">Musical Colors</a>
             <a href="/preset" class="btn btn-Primary" role="button">Preset Colors</a>
         </div>
@@ -67,7 +68,7 @@
                     <label for="brightness">Brightness</label>
                     <div class="d-flex justify-content-center">
                         <input type="range" id="static-brightness" style="width: 90%;" min="0" max="255" value="255" oninput="this.nextElementSibling.value = this.value">
-                        <output>100</output>
+                        <output>255</output>
                     </div>
                 </div>
                 <br>

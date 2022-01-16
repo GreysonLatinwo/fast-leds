@@ -9,7 +9,7 @@
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script>
             function HEXtoHSL(hex) {
                 hex = hex.replace(/#/g, '');
@@ -64,6 +64,9 @@
                 color1 = document.getElementById("color1").value
                 color2 = document.getElementById("color2").value
                 color3 = document.getElementById("color3").value
+                brightness = document.getElementById("brightness").value
+
+                
 
                 hue1 = HEXtoHSL(color1).h
                 hue2 = HEXtoHSL(color2).h
@@ -80,7 +83,7 @@
     </head>
     <body style="background-color:#222222; color: white">
         <br>
-        <div class="d-flex justify-content-center" style="width: 100%; justify-self: center;">
+        <div class="d-flex justify-content-around" style="width: 100%; justify-self: center;">
             <a href="/music" class="btn btn-Primary" role="button">Musical Colors</a>
             <a href="/static" class="btn btn-Primary" role="button">Static Colors</a>
         </div>
@@ -92,14 +95,21 @@
                       <option value="Confetti">Confetti</option>
                       <option value="Sinelon">Sinelon</option>
                       <option value="Juggle">Juggle</option>
-                      <option value="spinningHues">spinningHues</option>
+                      <option value="spinningHues">Spinning Hues</option>
                     </select>
                 </form>
-                <label>Choose Preset Colors:</label>
-                <div class="input-group mb-3">
-                    <input id="color1" type="color" value="#00ffff" style="width: 33%; height: 80px;">
-                    <input id="color2" type="color" value="#aa00ff" style="width: 34%; height: 80px;">
-                    <input id="color3" type="color" value="#00ffbf" style="width: 33%; height: 80px;">
+                <label>Choose Spinning Hues:</label>
+                <div class="mb-3">
+                    <input id="color1" type="color" value="#00ffff" style="width: 32%; height: 80px;">
+                    <input id="color2" type="color" value="#aa00ff" style="width: 33%; height: 80px;">
+                    <input id="color3" type="color" value="#00ffbf" style="width: 32%; height: 80px;">
+                </div>
+                <div>
+                    <label for="brightness">Brightness</label>
+                    <div class="d-flex justify-content-center">
+                        <input type="range" id="brightness" style="width: 90%;" min="0" max="255" value="255" oninput="this.nextElementSibling.value = this.value">
+                        <output>255</output>
+                    </div>
                 </div>
                 <div class="d-flex">
                     <button type="button" class="btn btn-primary btn-block" id="send" onclick="sendPreset(document.getElementById('presetSelector').value)">Set Preset</button>
