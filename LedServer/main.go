@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+
+	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 var webServerPort *uint
@@ -27,7 +29,7 @@ func main() {
 	//start pulse audio callback listener
 	go StartPulseAudio()
 	//init webserver and start start listening led writes
-	chkFatal(StartComms())
+	utils.ChkFatal(StartComms())
 	//start web server
 	http.ListenAndServe(fmt.Sprintf(":%d", *webServerPort), nil)
 }

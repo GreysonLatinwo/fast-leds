@@ -1,14 +1,8 @@
 package main
 
 import (
-	"log"
 	"math"
 )
-
-// hard caps between lower and upper values
-func clamp(val, lower, upper float64) float64 {
-	return math.Max(lower, math.Min(val, upper))
-}
 
 // r g b color to integer color
 // all values [0, 255]
@@ -26,7 +20,7 @@ func IntToRGB(x uint32) (float64, float64, float64) {
 }
 
 // hue [0,1]
-func hueToRGB(v1, v2, h float64) float64 {
+func HueToRGB(v1, v2, h float64) float64 {
 	if h < 0 {
 		h += 1
 	}
@@ -61,17 +55,17 @@ func HSLToRGB(h, s, l float64) (float64, float64, float64) {
 
 	v1 = 2*l - v2
 
-	r := hueToRGB(v1, v2, h+(1.0/3.0))
-	g := hueToRGB(v1, v2, h)
-	b := hueToRGB(v1, v2, h-(1.0/3.0))
+	r := HueToRGB(v1, v2, h+(1.0/3.0))
+	g := HueToRGB(v1, v2, h)
+	b := HueToRGB(v1, v2, h-(1.0/3.0))
 
 	return r * 255, g * 255, b * 255
 }
 
 // rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg
 // rgb [0, 255], rotDeg [0, 360]
-func rotateColor(rgb []float64, rotDeg float64) []float64 {
-	if rotDeg == 0 {
+func RotateColor(rgb []float64, rotDeg float64) []float64 {
+	if 0 >= rotDeg || rotDeg >= 360 {
 		return rgb
 	}
 	pi := 3.14159265
@@ -93,27 +87,4 @@ func rotateColor(rgb []float64, rotDeg float64) []float64 {
 	outf[1] = math.Min(math.Max(rgb[0]*matrix[1][0]+rgb[1]*matrix[1][1]+rgb[2]*matrix[1][2], 0), 255)
 	outf[2] = math.Min(math.Max(rgb[0]*matrix[2][0]+rgb[1]*matrix[2][1]+rgb[2]*matrix[2][2], 0), 255)
 	return outf
-}
-
-func Index(vs []string, t string) int {
-	for i, v := range vs {
-		if v == t {
-			return i
-		}
-	}
-	return -1
-}
-
-func Contains(vs []string, t string) bool {
-	return Index(vs, t) >= 0
-}
-
-func mod(a, b int) int {
-	return int(math.Mod(float64(a), float64(b)))
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Println(err)
-	}
 }
