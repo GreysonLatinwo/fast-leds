@@ -76,6 +76,7 @@ func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
 	props, e := dev.MapString("PropertyList") // map[string]string
 	chkPrint(e)
 	log.Println(props["media.name"])
+	go ProcessAudioStream()
 }
 
 // PlaybackStreamRemoved is called when a playback stream is removed.

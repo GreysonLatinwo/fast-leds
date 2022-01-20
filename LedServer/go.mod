@@ -1,4 +1,4 @@
-module github.com/greysonlatinwo/fastLed/analyzeAudioStream/Communication/LedServer
+module github.com/greysonlatinwo/fast-led/LedServer
 
 go 1.16
 

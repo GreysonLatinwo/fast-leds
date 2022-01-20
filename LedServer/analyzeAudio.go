@@ -8,6 +8,8 @@ import (
 	"github.com/mjibson/go-dsp/window"
 
 	"log"
+
+	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 var (
@@ -43,13 +45,13 @@ var (
 // read audio stream and computes fft and color
 func ProcessAudioStream() {
 	isProcessAudioStream = true
-	log.Println("Waiting for audio stream to process...")
+	log.Println("Listening to audio stream")
 
 	audioStreamBuffer := make([]int16, audioStreamBufferSize)
 	parecCmd := exec.Command("parec")
 	audioStreamReader, err := parecCmd.StdoutPipe()
-	chkPrint(err)
-	chkPrint(parecCmd.Start())
+	utils.ChkPrint(err)
+	utils.ChkPrint(parecCmd.Start())
 
 	for isProcessAudioStream {
 		//return when we are told
@@ -78,9 +80,9 @@ func ProcessAudioStream() {
 			Scale_off: false,
 		}
 		pxx, freq = spectral.Pwelch(buffercomplex, float64(sampleRate*numChannels), opt)
-		rangeFreq := computeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
+		rangeFreq := utils.ComputeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
 		pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
-		pxx = normalizePower(pxx)
+		pxx = utils.NormalizePower(pxx)
 
 		color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
 		ledCommPipe <- [6]byte{1, color[0], color[1], color[2], 0, 0}
@@ -90,12 +92,12 @@ func ProcessAudioStream() {
 // converts the pxx and freq to rgb values
 // and saves them to the 'fftColor' variable
 func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
-	redLowerIdx := computeFreqIdx(redLowerFreq, int(sampleRate), pad)
-	redUpperIdx := computeFreqIdx(redUpperFreq, int(sampleRate), pad)
-	greenLowerIdx := computeFreqIdx(greenLowerFreq, int(sampleRate), pad)
-	greenUpperIdx := computeFreqIdx(greenUpperFreq, int(sampleRate), pad)
-	blueLowerIdx := computeFreqIdx(blueLowerFreq, int(sampleRate), pad)
-	blueupperIdx := computeFreqIdx(blueUpperFreq, int(sampleRate), pad)
+	redLowerIdx := utils.ComputeFreqIdx(redLowerFreq, int(sampleRate), pad)
+	redUpperIdx := utils.ComputeFreqIdx(redUpperFreq, int(sampleRate), pad)
+	greenLowerIdx := utils.ComputeFreqIdx(greenLowerFreq, int(sampleRate), pad)
+	greenUpperIdx := utils.ComputeFreqIdx(greenUpperFreq, int(sampleRate), pad)
+	blueLowerIdx := utils.ComputeFreqIdx(blueLowerFreq, int(sampleRate), pad)
+	blueupperIdx := utils.ComputeFreqIdx(blueUpperFreq, int(sampleRate), pad)
 
 	findMax := func(arr []float64) float64 {
 		max := 0.0
@@ -167,7 +169,7 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenAvg *= colorOutScale
 	blueAvg *= colorOutScale
 
-	rgbRotated := rotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
-	fftColor = clamp(rgbRotated)
+	rgbRotated := utils.RotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
+	fftColor = utils.ClampRGBColor(rgbRotated)
 	return fftColor
 }

@@ -16,6 +16,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/mjibson/go-dsp/window"
+
+	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 const colorUpdateBufSize = 8
@@ -61,11 +63,11 @@ func init() {
 			}
 			presetInt = 6
 			//hues
-			args[0] = uint8(handleErrPrint(strconv.Atoi(presetData[1])).(int))
-			args[1] = uint8(handleErrPrint(strconv.Atoi(presetData[2])).(int))
-			args[2] = uint8(handleErrPrint(strconv.Atoi(presetData[3])).(int))
+			args[0] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[1])).(int))
+			args[1] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[2])).(int))
+			args[2] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[3])).(int))
 			//brightness [0,255]
-			args[3] = uint8(handleErrPrint(strconv.Atoi(presetData[4])).(int))
+			args[3] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[4])).(int))
 		}
 
 		ledCommPipe <- [6]byte{
@@ -83,7 +85,7 @@ func init() {
 			stopMusicListening <- struct{}{}
 		}
 		rBody, err := ioutil.ReadAll(r.Body)
-		chkPrint(err)
+		utils.ChkPrint(err)
 		body := strings.Split(string(rBody), ",")
 		red, err := strconv.Atoi(body[0])
 		if err != nil {
@@ -108,7 +110,6 @@ func init() {
 	})
 	http.HandleFunc("/music/start", func(rw http.ResponseWriter, r *http.Request) {
 		go ProcessAudioStream()
-		log.Println("Listening to music")
 	})
 	http.HandleFunc("/music/style.css", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, "public/style.css")
@@ -127,14 +128,14 @@ func init() {
 			Freq:  freq[:],
 			Color: []uint32{uint32(fftColor[0]), uint32(fftColor[1]), uint32(fftColor[2])},
 		})
-		chkPrint(err)
+		utils.ChkPrint(err)
 		rw.Write(jsonOut)
 	})
 	http.HandleFunc("/music/setFFTWindow", func(rw http.ResponseWriter, r *http.Request) {
 		fftTypeStr := r.URL.RawQuery
 		fftTypeInt, err := strconv.Atoi(fftTypeStr)
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 		switch fftTypeInt {
@@ -158,7 +159,7 @@ func init() {
 		energyLevelColor := energyLevelParsed[0]
 		energyLevelInt, err := strconv.Atoi(energyLevelParsed[1])
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 		switch strings.ToLower(energyLevelColor) {
@@ -176,7 +177,7 @@ func init() {
 		scaleColor := scaleParsed[0]
 		scaleVal, err := strconv.ParseFloat(scaleParsed[1], 64)
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 		switch strings.ToLower(scaleColor) {
@@ -192,7 +193,7 @@ func init() {
 		scaleData := r.URL.RawQuery
 		scaleVal, err := strconv.ParseFloat(scaleData, 64)
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 		colorOutScale = scaleVal
@@ -206,7 +207,7 @@ func init() {
 		ColorFreqInt, err := strconv.Atoi(ColorFreqParsed[2])
 
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 
@@ -293,13 +294,13 @@ func init() {
 			BlueUpperFreq:         blueUpperFreq,
 			MaxFreqOut:            maxFreqOut,
 		})
-		chkPrint(err)
+		utils.ChkPrint(err)
 		rw.Write(vars)
 	})
 	http.HandleFunc("/music/setColorShift", func(rw http.ResponseWriter, r *http.Request) {
 		colorShift, err := strconv.ParseFloat(r.URL.RawQuery, 64)
 		if err != nil {
-			chkPrint(err)
+			utils.ChkPrint(err)
 			return
 		}
 		fftColorShift = colorShift
@@ -309,8 +310,8 @@ func init() {
 func StartComms() error {
 	peerChan := initMDNS("fast-leds")
 
-	listenAddr := handleErrPrint(net.ResolveUDPAddr("udp4", UDPClientPort)).(*net.UDPAddr)
-	server := handleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
+	listenAddr := utils.HandleErrPrint(net.ResolveUDPAddr("udp4", UDPClientPort)).(*net.UDPAddr)
+	server := utils.HandleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 
 	piClients := make(map[string]*net.UDPAddr, 2)
 	remote := &remoteLeds{Server: server, Clients: piClients}
@@ -328,7 +329,7 @@ func listenForPeers(peerListen chan peer.AddrInfo, remote *remoteLeds) {
 				continue
 			}
 			log.Println("Adding Client:", peerIP)
-			piAddr := handleErrPrint(net.ResolveUDPAddr("udp4", peerIP+UDPClientPort)).(*net.UDPAddr)
+			piAddr := utils.HandleErrPrint(net.ResolveUDPAddr("udp4", peerIP+UDPClientPort)).(*net.UDPAddr)
 			remote.Clients[peerIP] = piAddr
 		}
 	}
@@ -338,7 +339,9 @@ func listenForPeers(peerListen chan peer.AddrInfo, remote *remoteLeds) {
 func colorServer(remote *remoteLeds, colorUpdate chan [6]byte) {
 	for color := range colorUpdate {
 		go writeToLocalLeds(color)
-		go remote.writeToLeds(color)
+		if color[0] != 0x1 {
+			go remote.writeToLeds(color)
+		}
 	}
 }
 
