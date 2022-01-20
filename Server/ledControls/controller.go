@@ -150,14 +150,19 @@ func renderLoop() {
 			}
 		}
 	}
+	isNewData := make(chan struct{})
 	//read stdin data
 	go func() {
 		for {
 			os.Stdin.Read(renderData)
+			select {
+			case isNewData <- struct{}{}:
+			default:
+			}
 		}
 	}()
 	for {
-		// select led display type
+		<-isNewData
 		switch renderData[0] {
 		case 0x1: // running
 			if isPresetRunning {
@@ -167,6 +172,7 @@ func renderLoop() {
 			intColor := utils.RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
 			setLeds(intColor)
 		case 0x2: // static
+			log.Println("static")
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
@@ -174,6 +180,7 @@ func renderLoop() {
 			intColor := utils.RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
 			setStaticLeds(intColor)
 		case 0x3: // confetti
+			log.Println("confetti")
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
@@ -183,6 +190,7 @@ func renderLoop() {
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x4: // sinelon
+			log.Println("sinelon")
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
@@ -191,6 +199,7 @@ func renderLoop() {
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x5: // juggle
+			log.Println("juggle")
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
@@ -199,6 +208,7 @@ func renderLoop() {
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x6: // spinning hue
+			log.Println("spinning hue")
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone

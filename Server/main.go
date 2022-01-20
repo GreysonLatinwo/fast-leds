@@ -17,7 +17,7 @@ func main() {
 		os.Stderr.WriteString("Run as non-root Pls :)")
 		return
 	}
-	startupSetting := *flag.Uint("startup", 1, "Startup settings")
+	startupSetting := *flag.Uint("startup", 0, "Startup settings")
 	webServerPort = flag.Uint("port", 9001, "The port that the webserver will listen on.")
 	flag.Parse()
 

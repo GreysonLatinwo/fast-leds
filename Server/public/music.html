@@ -350,21 +350,7 @@
                     b = pad(b, 2)
 
                     //document.body.style.backgroundColor = "#"+r+g+b
-                    data = [{
-                        x: fftData.Freq,
-                        y: fftData.Power,
-                        type:"lines"
-                    }];
-                    var fftLayout = {
-                        width: window.innerWidth*0.66,
-                        height: window.innerHeight*0.66,
-                        xaxis: {
-                            range: [0, 2800],
-                            title: "Hz",
-                        },
-                        yaxis: {range: [-30, 150], title: "Power"},  
-                        title: "FFT"
-                    };
+
                     data1 = [{
                         x: ['red', 'green', 'blue'],
                         y: fftData.Color,
@@ -381,8 +367,24 @@
                         title: "Color"
                     };
                     
-                    Plotly.react("fftPlot", data, fftLayout)
                     Plotly.react("colorPlot", data1, colorInitLayout)
+                    
+                    // data = [{
+                    //     x: fftData.Freq,
+                    //     y: fftData.Power,
+                    //     type:"lines"
+                    // }];
+                    // var fftLayout = {
+                    //     width: window.innerWidth*0.66,
+                    //     height: window.innerHeight*0.66,
+                    //     xaxis: {
+                    //         range: [0, 2800],
+                    //         title: "Hz",
+                    //     },
+                    //     yaxis: {range: [-30, 150], title: "Power"},  
+                    //     title: "FFT"
+                    // };
+                    // Plotly.react("fftPlot", data, fftLayout)
                 })
             });
         }
