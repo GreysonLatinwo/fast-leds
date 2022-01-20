@@ -18,7 +18,7 @@ func main() {
 		return
 	}
 	startupSetting := *flag.Uint("startup", 1, "Startup settings")
-	webServerPort = flag.Uint("port", 9001, "The port that the webserver will listem on.")
+	webServerPort = flag.Uint("port", 9001, "The port that the webserver will listen on.")
 	flag.Parse()
 
 	switch startupSetting {

@@ -69,8 +69,6 @@ func ProcessAudioStream() {
 		}
 	}()
 	log.Println("Listening to audio stream")
-	// only render at 60 fps
-	//ticker := time.NewTicker(time.Duration(time.Second / 60))
 	for isProcessAudioStream {
 		//convert buffer to float
 		buffercomplex := make([]float64, audioStreamBufferSize)
@@ -90,7 +88,6 @@ func ProcessAudioStream() {
 		pxx = utils.NormalizePower(pxx)
 
 		color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
-		//<-ticker.C
 		ledCommPipe <- [6]byte{1, color[0], color[1], color[2], 0, 0}
 	}
 }
