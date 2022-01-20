@@ -162,9 +162,15 @@ func renderLoop() {
 			}
 		}
 	}
+	go func() {
+		for {
+			pc.ReadFrom(renderData)
+		}
+	}()
+	ticker := time.NewTicker(time.Duration(time.Second / 60))
 	for {
-		pc.ReadFrom(renderData)
-		log.Println(renderData)
+		<-ticker.C
+		//log.Println(renderData)
 		// select led display type
 		switch renderData[0] {
 		case 0x1: // running
@@ -220,6 +226,6 @@ func renderLoop() {
 			presetFunc = rotatingHues
 			go runPreset()
 		}
-		checkError(ledController.Render())
+		ledController.Render()
 	}
 }
