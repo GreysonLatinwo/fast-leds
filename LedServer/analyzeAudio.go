@@ -45,33 +45,38 @@ var (
 // read audio stream and computes fft and color
 func ProcessAudioStream() {
 	isProcessAudioStream = true
-	log.Println("Listening to audio stream")
-
 	audioStreamBuffer := make([]int16, audioStreamBufferSize)
-	parecCmd := exec.Command("parec")
-	audioStreamReader, err := parecCmd.StdoutPipe()
-	utils.ChkPrint(err)
-	utils.ChkPrint(parecCmd.Start())
-
-	for isProcessAudioStream {
-		//return when we are told
-		select {
-		case <-stopMusicListening:
-			isProcessAudioStream = false
-			if err := parecCmd.Process.Kill(); err != nil {
-				log.Fatal("failed to kill process: ", err)
+	//function reads all data coming from parec
+	go func() {
+		log.Println("Starting parec")
+		parecCmd := exec.Command("parec")
+		audioStreamReader, err := parecCmd.StdoutPipe()
+		utils.ChkPrint(err)
+		utils.ChkPrint(parecCmd.Start())
+		for {
+			//read in audiostream to buffer
+			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
+			//return when we are told
+			select {
+			case <-stopMusicListening:
+				isProcessAudioStream = false
+				if err := parecCmd.Process.Kill(); err != nil {
+					log.Fatal("failed to kill process: ", err)
+				}
+				return
+			default:
 			}
-			return
-		default:
 		}
-		//read in audiostream to buffer
-		binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
+	}()
+	log.Println("Listening to audio stream")
+	// only render at 60 fps
+	//ticker := time.NewTicker(time.Duration(time.Second / 60))
+	for isProcessAudioStream {
 		//convert buffer to float
 		buffercomplex := make([]float64, audioStreamBufferSize)
 		for i, v := range audioStreamBuffer {
 			buffercomplex[i] = float64(v)
 		}
-
 		//FFT
 		opt := &spectral.PwelchOptions{
 			NFFT:      numBins, //nfft should be power of 2
@@ -85,6 +90,7 @@ func ProcessAudioStream() {
 		pxx = utils.NormalizePower(pxx)
 
 		color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
+		//<-ticker.C
 		ledCommPipe <- [6]byte{1, color[0], color[1], color[2], 0, 0}
 	}
 }

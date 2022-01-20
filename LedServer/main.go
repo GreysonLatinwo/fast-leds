@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
@@ -12,7 +13,11 @@ var webServerPort *uint
 
 // takes audio stream, analyses the audio and writes the output to color
 func main() {
-	startupSetting := *flag.Uint("startup", 0, "Startup settings")
+	if os.Getgid() == 0 {
+		os.Stderr.WriteString("Run as non-root Pls :)")
+		return
+	}
+	startupSetting := *flag.Uint("startup", 1, "Startup settings")
 	webServerPort = flag.Uint("port", 9001, "The port that the webserver will listem on.")
 	flag.Parse()
 

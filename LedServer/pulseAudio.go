@@ -5,6 +5,8 @@ import (
 
 	"github.com/godbus/dbus"
 	"github.com/sqp/pulseaudio"
+
+	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 // Create a pulse dbus service with 2 clients, listen to events,
@@ -18,15 +20,15 @@ func init() {
 	// Load pulseaudio DBus module if needed. This module is mandatory, but it
 	// can also be configured in system files. See package doc.
 	isLoaded, e := pulseaudio.ModuleIsLoaded()
-	chkFatal(e)
+	utils.ChkFatal(e)
 	if !isLoaded {
 		e = pulseaudio.LoadModule()
-		chkFatal(e)
+		utils.ChkFatal(e)
 	}
 
 	// Connect to the pulseaudio dbus service.
 	pulse, e = pulseaudio.New()
-	chkPrint(e)
+	utils.ChkFatal(e)
 
 	// Create and register a first client.
 	app = &AppPulse{}
@@ -74,7 +76,7 @@ func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
 	numChannels = len(_numChannels)
 	log.Println("new playback stream:", streamPath)
 	props, e := dev.MapString("PropertyList") // map[string]string
-	chkPrint(e)
+	utils.ChkPrint(e)
 	log.Println(props["media.name"])
 	go ProcessAudioStream()
 }

@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 	"time"
+
+	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 var presetHue []float64 = []float64{255, 0, 0}
@@ -14,7 +16,7 @@ func rotatePresetHue(rps float64) {
 	t := time.NewTicker(time.Duration(time.Second / 30))
 	for {
 		<-t.C
-		presetHue[0], presetHue[1], presetHue[2] = HSLToRGB(math.Mod(beat16(rpm), 1.0), 1, 0.5)
+		presetHue[0], presetHue[1], presetHue[2] = utils.HSLToRGB(math.Mod(beat16(rpm), 1.0), 1, 0.5)
 	}
 }
 
@@ -22,17 +24,17 @@ func rotatePresetHue(rps float64) {
 func fadeToBlackBy(_fadeby float64) {
 	fadeby := 1 - _fadeby
 	for i := range leds {
-		r, g, b := IntToRGB(leds[i])
+		r, g, b := utils.IntToRGB(leds[i])
 		r = r * fadeby
 		g = g * fadeby
 		b = b * fadeby
-		leds[i] = RGBToInt(r, g, b)
+		leds[i] = utils.RGBToInt(r, g, b)
 	}
 }
 
 // weight [0 To 1]
 func mixColors(color1, color2 []float64, weight2 float64) (r, g, b float64) {
-	weight2 = clamp(weight2, 0, 1)
+	weight2 = utils.ClampVal(weight2, 0, 1)
 	weight1 := 1.0 - weight2
 	r = color1[0]*weight1 + color2[0]*weight2
 	g = color1[1]*weight1 + color2[1]*weight2

@@ -1,8 +1,10 @@
-package main
+package utils
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"time"
 )
@@ -123,7 +125,8 @@ func HandleErrPrint(out ...interface{}) interface{} {
 
 func ChkFatal(e error) {
 	if e != nil {
-		log.Fatalf("%+v\n", e)
+		fmt.Fprintf(os.Stderr, "%+v\n", e)
+		log.Fatal(e)
 	}
 }
 

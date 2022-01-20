@@ -325,7 +325,11 @@ func listenForPeers(peerListen chan peer.AddrInfo, remote *remoteLeds) {
 		for _, peerMultiAddr := range peer.Addrs {
 			peerIP := strings.Split(peerMultiAddr.String(), "/")[2]
 			//dont add yourself or clients already added
-			if _, ok := remote.Clients[peerIP]; ok || peerIP == getOutBoundAddress() {
+			if _, ok := remote.Clients[peerIP]; ok {
+				continue
+			}
+			if peerIP == getOutBoundAddress() {
+				log.Println("self:", peerIP)
 				continue
 			}
 			log.Println("Adding Client:", peerIP)
@@ -339,9 +343,7 @@ func listenForPeers(peerListen chan peer.AddrInfo, remote *remoteLeds) {
 func colorServer(remote *remoteLeds, colorUpdate chan [6]byte) {
 	for color := range colorUpdate {
 		go writeToLocalLeds(color)
-		if color[0] != 0x1 {
-			go remote.writeToLeds(color)
-		}
+		go remote.writeToLeds(color)
 	}
 }
 

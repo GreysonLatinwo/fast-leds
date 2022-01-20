@@ -34,15 +34,12 @@ func parseRenderType(renderType string) error {
 	runningchunkSize = ledCount
 	if utils.Contains(renderParams, "static") {
 		renderFunc = setStaticLeds
-		log.Println("Static Leds")
 		return nil
 	}
 	if utils.Contains(renderParams, "running") {
 		renderFunc = setRunningLeds
-		log.Print("Running Leds")
 	}
 	if centerIdx := utils.Index(renderParams, "center"); centerIdx >= 0 {
-		log.Print("\tCenter")
 		renderFunc = setRunningCenterLeds
 	}
 	// if the last value is a number then thats that chunk size
@@ -153,9 +150,13 @@ func renderLoop() {
 			}
 		}
 	}
+	//read stdin data
+	go func() {
+		for {
+			os.Stdin.Read(renderData)
+		}
+	}()
 	for {
-		os.Stdin.Read(renderData)
-		//log.Println(renderData)
 		// select led display type
 		switch renderData[0] {
 		case 0x1: // running
@@ -211,6 +212,6 @@ func renderLoop() {
 			presetFunc = rotatingHues
 			go runPreset()
 		}
-		utils.CheckError(ledController.Render())
+		ledController.Render()
 	}
 }
