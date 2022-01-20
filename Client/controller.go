@@ -162,13 +162,19 @@ func renderLoop() {
 			}
 		}
 	}
+	isNewData := make(chan struct{})
 	go func() {
 		for {
 			pc.ReadFrom(renderData)
+			select {
+			case isNewData <- struct{}{}:
+			default:
+			}
 		}
 	}()
 	ticker := time.NewTicker(time.Duration(time.Second / 60))
 	for {
+		<-isNewData
 		<-ticker.C
 		//log.Println(renderData)
 		// select led display type
