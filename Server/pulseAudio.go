@@ -6,7 +6,7 @@ import (
 	"github.com/godbus/dbus"
 	"github.com/sqp/pulseaudio"
 
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 )
 
 // Create a pulse dbus service with 2 clients, listen to events,

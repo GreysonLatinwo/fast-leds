@@ -132,7 +132,8 @@ func setRunningCenterLeds(color uint32) {
 
 func renderLoop() {
 	go rotatePresetHue()
-	pc, err := net.ListenUDP("udp4", ":1234")
+	udpip, _ := net.ResolveUDPAddr("udp4", ":1234")
+	pc, err := net.ListenUDP("udp4", udpip)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +166,7 @@ func renderLoop() {
 	isNewData := make(chan struct{})
 	go func() {
 		for {
-			pc.ReadFrom(renderData)
+			pc.Read(renderData)
 			select {
 			case isNewData <- struct{}{}:
 			default:

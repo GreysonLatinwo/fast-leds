@@ -3,14 +3,13 @@ package main
 import (
 	"encoding/binary"
 	"io"
+	"log"
 	"os/exec"
 
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
 
-	"log"
-
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 )
 
 var (

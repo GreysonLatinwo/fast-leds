@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 	"github.com/mjibson/go-dsp/window"
 )
 

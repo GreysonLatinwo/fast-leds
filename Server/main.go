@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 )
 
 var webServerPort *uint

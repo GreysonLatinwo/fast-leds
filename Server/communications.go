@@ -6,9 +6,8 @@ import (
 	"os"
 	"strings"
 
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 	"github.com/libp2p/go-libp2p-core/peer"
-
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
 )
 
 const colorUpdateBufSize = 8

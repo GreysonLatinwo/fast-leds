@@ -12,7 +12,7 @@ import (
 
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 
-	utils "github.com/greysonlatinwo/fast-led/LedServer/utils"
+	utils "github.com/greysonlatinwo/fast-leds/Utils"
 )
 
 var (
