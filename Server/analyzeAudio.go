@@ -9,7 +9,7 @@ import (
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
 
-	utils "github.com/greysonlatinwo/fast-leds/Utils"
+	utils "github.com/greysonlatinwo/fast-leds/utils"
 )
 
 var (
