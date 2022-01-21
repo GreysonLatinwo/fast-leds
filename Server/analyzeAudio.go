@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"io"
 	"os/exec"
 
 	"github.com/mjibson/go-dsp/spectral"
@@ -48,11 +49,9 @@ func ProcessAudioStream() {
 	audioStreamBuffer := make([]int16, audioStreamBufferSize)
 	//function reads all data coming from parec
 	go func() {
-		log.Println("Starting parec")
 		parecCmd := exec.Command("parec")
-		audioStreamReader, err := parecCmd.StdoutPipe()
-		utils.ChkPrint(err)
-		utils.ChkPrint(parecCmd.Start())
+		audioStreamReader := utils.HandleErrPrint(parecCmd.StdoutPipe()).(io.ReadCloser)
+		utils.CheckError(parecCmd.Start())
 		for {
 			//read in audiostream to buffer
 			binary.Read(audioStreamReader, binary.LittleEndian, audioStreamBuffer)
@@ -61,7 +60,7 @@ func ProcessAudioStream() {
 			case <-stopMusicListening:
 				isProcessAudioStream = false
 				if err := parecCmd.Process.Kill(); err != nil {
-					log.Fatal("failed to kill process: ", err)
+					log.Fatalln("failed to kill process\n", err)
 				}
 				return
 			default:

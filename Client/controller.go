@@ -132,7 +132,7 @@ func setRunningCenterLeds(color uint32) {
 
 func renderLoop() {
 	go rotatePresetHue()
-	pc, err := net.ListenPacket("udp4", ":1234")
+	pc, err := net.ListenUDP("udp4", ":1234")
 	if err != nil {
 		panic(err)
 	}

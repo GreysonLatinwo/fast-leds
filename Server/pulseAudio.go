@@ -15,8 +15,7 @@ var app *AppPulse
 var pulse *pulseaudio.Client
 var isModuleLoaded bool
 
-//initalize pulseaudio
-func init() {
+func StartPulseAudio() {
 	// Load pulseaudio DBus module if needed. This module is mandatory, but it
 	// can also be configured in system files. See package doc.
 	isLoaded, e := pulseaudio.ModuleIsLoaded()
@@ -33,9 +32,7 @@ func init() {
 	// Create and register a first client.
 	app = &AppPulse{}
 	pulse.Register(app)
-}
 
-func StartPulseAudio() {
 	if isModuleLoaded {
 		defer pulseaudio.UnloadModule() // has error to test
 	}
@@ -76,7 +73,7 @@ func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
 	numChannels = len(_numChannels)
 	log.Println("new playback stream:", streamPath)
 	props, e := dev.MapString("PropertyList") // map[string]string
-	utils.ChkPrint(e)
+	utils.CheckError(e)
 	log.Println(props["media.name"])
 	go ProcessAudioStream()
 }
