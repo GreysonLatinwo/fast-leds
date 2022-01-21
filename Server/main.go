@@ -27,10 +27,6 @@ func main() {
 		ledCommPipe <- [6]byte{2, 0, 0, 0, 0, 0}
 	case 1: //listen to music
 		go ProcessAudioStream()
-	case 2: // set statc color
-		ledCommPipe <- [6]byte{1, 255, 0, 0, 0, 0}
-	case 3: // THE Preset
-		ledCommPipe <- [6]byte{3, 4, 128, 198, 117, 0}
 	}
 	//start pulse audio callback listener
 	go StartPulseAudio()
