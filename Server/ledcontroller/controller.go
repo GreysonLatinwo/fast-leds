@@ -12,6 +12,7 @@ import (
 
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 
+	ledcontrols "github.com/greysonlatinwo/fast-leds/ledcontrols"
 	utils "github.com/greysonlatinwo/fast-leds/utils"
 )
 
@@ -76,7 +77,7 @@ func main() {
 	defer ledController.Fini()
 
 	leds = ledController.Leds(0)
-	go ledcontrols.rotatePresetHue(60)
+	go ledcontrols.RotatePresetHue(60)
 	renderLoop()
 }
 
@@ -131,7 +132,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
-	presetFunc := ledcontrols.confetti
+	//presetFunc := ledcontrols.confetti
 	runPreset := func() {
 		isPresetRunning = true
 		defer func() {
@@ -143,7 +144,7 @@ func renderLoop() {
 			<-ticker.C
 			select {
 			case <-ticker.C:
-				presetFunc(presetArgs)
+				//presetFunc(presetArgs)
 				ledController.Render()
 			case <-killPreset:
 				return
@@ -187,7 +188,7 @@ func renderLoop() {
 				<-presetDone
 			}
 			presetFPS = 50
-			presetFunc = ledcontrols.confetti
+			//presetFunc = ledcontrols.confetti
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x4: // sinelon
@@ -196,7 +197,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = ledcontrols.sinelon
+			//presetFunc = ledcontrols.sinelon
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x5: // juggle
@@ -205,7 +206,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = ledcontrols.juggle
+			//presetFunc = ledcontrols.juggle
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x6: // spinning hue
@@ -220,7 +221,7 @@ func renderLoop() {
 			presetArgs[2] = float64(renderData[3]) / 255
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
-			presetFunc = ledcontrols.rotatingHues
+			//presetFunc = ledcontrols.rotatingHues
 			go runPreset()
 		}
 		ledController.Render()
