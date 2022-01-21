@@ -113,7 +113,10 @@ func renderLoop() {
 		}
 	}()
 	for {
-		<-isNewData
+		// if the data is music then dont wait for new data
+		if renderData[0] != 0x1 {
+			<-isNewData
+		}
 		switch renderData[0] {
 		case 0x1: // running
 			if isPresetRunning {

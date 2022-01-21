@@ -121,7 +121,10 @@ func renderLoop() {
 	}()
 	ticker := time.NewTicker(time.Duration(time.Second / 60))
 	for {
-		<-isNewData
+		// if the data is music then dont wait for new data
+		if renderData[0] != 0x1 {
+			<-isNewData
+		}
 		<-ticker.C
 		// select led display type
 		switch renderData[0] {
