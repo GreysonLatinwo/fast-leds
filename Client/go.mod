@@ -9,6 +9,8 @@ require (
 	github.com/rpi-ws281x/rpi-ws281x-go v1.0.8
 )
 
+replace github.com/greysonlatinwo/fast-leds/utils => ../utils
+
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect

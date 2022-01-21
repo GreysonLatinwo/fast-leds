@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	brightness                    = 200 //0-255
+	brightness                    = 160 //0-255
 	ledCount                      = 21
 	renderFunc       func(uint32) = setStaticLeds
 	rotate                        = false
@@ -77,7 +77,7 @@ func main() {
 
 	leds = ledController.Leds(0)
 
-	go ledcontrols.RotatePresetHue(60)
+	go utils.RotatePresetHue(60)
 	renderLoop()
 }
 
@@ -132,7 +132,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
-	presetFunc := ledcontrols.Confetti
+	presetFunc := utils.Confetti
 	runPreset := func() {
 		isPresetRunning = true
 		defer func() {
@@ -188,7 +188,7 @@ func renderLoop() {
 				<-presetDone
 			}
 			presetFPS = 50
-			presetFunc = ledcontrols.Confetti
+			presetFunc = utils.Confetti
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x4: // sinelon
@@ -197,7 +197,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = ledcontrols.Sinelon
+			presetFunc = utils.Sinelon
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x5: // juggle
@@ -206,7 +206,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = ledcontrols.Juggle
+			presetFunc = utils.Juggle
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x6: // spinning hue
@@ -221,7 +221,7 @@ func renderLoop() {
 			presetArgs[2] = float64(renderData[3]) / 255
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
-			presetFunc = ledcontrols.RotatingHues
+			presetFunc = utils.RotatingHues
 			go runPreset()
 		}
 		ledController.Render()

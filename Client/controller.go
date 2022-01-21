@@ -83,7 +83,7 @@ func main() {
 
 	initMDNS("fast-leds")
 
-	go ledcontrols.RotatePresetHue(60)
+	go utils.RotatePresetHue(60)
 	renderLoop()
 }
 
@@ -144,7 +144,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
-	presetFunc := utils.Confetti
+	var presetFunc func([]uint32, []float64)
 	runPreset := func() {
 		isPresetRunning = true
 		defer func() {
@@ -156,7 +156,7 @@ func renderLoop() {
 			<-ticker.C
 			select {
 			case <-ticker.C:
-				presetFunc(presetArgs)
+				presetFunc(leds, presetArgs)
 				ledController.Render()
 			case <-killPreset:
 				return
