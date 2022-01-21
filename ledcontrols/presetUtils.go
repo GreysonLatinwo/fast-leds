@@ -11,7 +11,7 @@ var presetHue []float64 = []float64{255, 0, 0}
 
 // rotate the presetHue variable
 // rps: rotations per seconds [0, Inf)
-func rotatePresetHue(rps float64) {
+func RotatePresetHue(rps float64) {
 	rpm := rps / 60
 	t := time.NewTicker(time.Duration(time.Second / 30))
 	for {

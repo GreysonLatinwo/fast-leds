@@ -1,4 +1,4 @@
 #!/bin/bash
 go build -o bin/analyzeAudio .
-cd ledControls
+cd ledController
 go build -o ../bin/ledController .
