@@ -121,9 +121,8 @@ func renderLoop() {
 	}()
 	ticker := time.NewTicker(time.Duration(time.Second / 60))
 	for {
-		//<-isNewData
+		<-isNewData
 		<-ticker.C
-		//log.Println(renderData)
 		// select led display type
 		switch renderData[0] {
 		case 0x1: // running
