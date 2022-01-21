@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/greysonlatinwo/fast-leds/utils"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
@@ -18,8 +19,8 @@ var (
 	ledCount                      = 21
 	renderFunc       func(uint32) = setStaticLeds
 	rotate                        = false
-	offset                        = 0.0
-	runningchunkSize int
+	offset           float64      = 0.0
+	runningchunkSize float64
 
 	isPresetRunning bool = false
 )
@@ -29,25 +30,25 @@ var leds []uint32
 
 func parseRenderType(renderType string) error {
 	renderParams := strings.Split(renderType, "-")
-	runningchunkSize = ledCount
-	if Contains(renderParams, "static") {
+	runningchunkSize = float64(ledCount)
+	if utils.Contains(renderParams, "static") {
 		renderFunc = setStaticLeds
 		log.Println("Static Leds")
 		return nil
 	}
-	if Contains(renderParams, "running") {
+	if utils.Contains(renderParams, "running") {
 		renderFunc = setRunningLeds
 		log.Print("Running Leds")
 	}
-	if centerIdx := Index(renderParams, "center"); centerIdx >= 0 {
+	if centerIdx := utils.Index(renderParams, "center"); centerIdx >= 0 {
 		log.Print("\tCenter")
 		renderFunc = setRunningCenterLeds
 	}
 	// if the last value is a number then thats that chunk size
 	if num, err := strconv.Atoi(renderParams[len(renderParams)-1]); err == nil {
-		runningchunkSize = num
+		runningchunkSize = float64(num)
 	}
-	if Contains(renderParams, "spinning") {
+	if utils.Contains(renderParams, "spinning") {
 		rotate = true
 	}
 	return nil
@@ -74,15 +75,15 @@ func main() {
 	opt.Channels[0].LedCount = ledCount
 	var err error
 	ledController, err = ws2811.MakeWS2811(&opt)
-	checkError(err)
-	checkError(ledController.Init())
+	utils.CheckError(err)
+	utils.CheckError(ledController.Init())
 	defer ledController.Fini()
 
 	leds = ledController.Leds(0)
 
 	initMDNS("fast-leds")
 
-	//start rendering
+	go ledcontrols.RotatePresetHue(60)
 	renderLoop()
 }
 
@@ -102,36 +103,35 @@ func setStaticLeds(color uint32) {
 func setRunningLeds(color uint32) {
 	//shift leds and set new color at beginning
 	for i := runningchunkSize - 1; i > 0; i-- {
-		leds[mod(i+int(offset), ledCount)] = leds[mod((i-1)+int(offset), ledCount)]
+		leds[utils.Mod(i+offset, float64(ledCount))] = leds[utils.Mod((i-1)+offset, float64(ledCount))]
 	}
 	leds[int(offset)%ledCount] = color
 
 	//duplicate for the reset of the leds
-	for i := runningchunkSize; i < ledCount; i++ {
-		chunkPos := mod(i, runningchunkSize)
-		leds[mod(i+int(offset), ledCount)] = leds[mod(chunkPos+int(offset), ledCount)]
+	for i := runningchunkSize; i < float64(ledCount); i++ {
+		chunkPos := utils.Mod(i, runningchunkSize)
+		leds[utils.Mod(i+offset, float64(ledCount))] = leds[utils.Mod(float64(chunkPos)+offset, float64(ledCount))]
 	}
 }
 
 func setRunningCenterLeds(color uint32) {
 	//shift leds and set new color at center
-	for i := 0; i < runningchunkSize/2; i++ {
-		leds[mod(i+int(offset), ledCount)] = leds[mod(i+1+int(offset), ledCount)]
+	for i := 0.0; i < runningchunkSize/2; i++ {
+		leds[utils.Mod(i+offset, float64(ledCount))] = leds[utils.Mod(i+1+offset, float64(ledCount))]
 	}
 	for i := runningchunkSize - 1; i > runningchunkSize/2; i-- {
-		leds[mod(i+int(offset), ledCount)] = leds[mod(i-1+int(offset), ledCount)]
+		leds[utils.Mod(i+offset, float64(ledCount))] = leds[utils.Mod(i-1+offset, float64(ledCount))]
 	}
-	leds[mod((runningchunkSize/2)+int(offset), ledCount)] = color
+	leds[utils.Mod((runningchunkSize/2)+offset, float64(ledCount))] = color
 
 	//duplicate for the reset of the leds
-	for i := runningchunkSize; i < ledCount; i++ {
-		chunkPos := mod(i, runningchunkSize)
-		leds[mod(i+int(offset), ledCount)] = leds[mod(chunkPos+int(offset), ledCount)]
+	for i := runningchunkSize; i < float64(ledCount); i++ {
+		chunkPos := utils.Mod(i, runningchunkSize)
+		leds[utils.Mod(i+offset, float64(ledCount))] = leds[utils.Mod(float64(chunkPos)+offset, float64(ledCount))]
 	}
 }
 
 func renderLoop() {
-	go rotatePresetHue()
 	udpip, _ := net.ResolveUDPAddr("udp4", ":1234")
 	pc, err := net.ListenUDP("udp4", udpip)
 	if err != nil {
@@ -144,7 +144,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
-	presetFunc := confetti
+	presetFunc := utils.Confetti
 	runPreset := func() {
 		isPresetRunning = true
 		defer func() {
@@ -185,14 +185,14 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			intColor := RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
+			intColor := utils.RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
 			setLeds(intColor)
 		case 0x2: // static
 			if isPresetRunning {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			intColor := RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
+			intColor := utils.RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
 			setStaticLeds(intColor)
 		case 0x3: // confetti
 			if isPresetRunning {
@@ -200,7 +200,7 @@ func renderLoop() {
 				<-presetDone
 			}
 			presetFPS = 50
-			presetFunc = confetti
+			presetFunc = utils.Confetti
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x4: // sinelon
@@ -208,7 +208,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = sinelon
+			presetFunc = utils.Sinelon
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x5: // juggle
@@ -216,7 +216,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = juggle
+			presetFunc = utils.Juggle
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x6: // spinning hue
@@ -230,7 +230,7 @@ func renderLoop() {
 			presetArgs[2] = float64(renderData[3]) / 255
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
-			presetFunc = rotatingHues
+			presetFunc = utils.RotatingHues
 			go runPreset()
 		}
 		ledController.Render()

@@ -3,6 +3,7 @@ module github.com/greysonlatinwo/fast-led-cli
 go 1.17
 
 require (
+	github.com/greysonlatinwo/fast-leds/utils v0.0.0-20220121162157-a011b68f7a69
 	github.com/libp2p/go-libp2p v0.17.0
 	github.com/libp2p/go-libp2p-core v0.13.0
 	github.com/rpi-ws281x/rpi-ws281x-go v1.0.8

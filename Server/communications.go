@@ -23,7 +23,7 @@ type remoteLeds struct {
 }
 
 func StartComms() error {
-	//start mdns listener
+	// start mdns listener
 	newPeerChan := initMDNS("fast-leds")
 
 	listenAddr := utils.HandleErrPrint(net.ResolveUDPAddr("udp4", UDPClientPort)).(*net.UDPAddr)

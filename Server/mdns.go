@@ -5,7 +5,6 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
-
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 )
 
@@ -36,8 +35,7 @@ func getOutBoundAddress() string {
 			if ip == nil || ip.IsLoopback() {
 				continue
 			}
-			ip = ip.To4()
-			if ip == nil {
+			if ip = ip.To4(); ip == nil {
 				continue // not an ipv4 address
 			}
 			return ip.String()
@@ -48,8 +46,7 @@ func getOutBoundAddress() string {
 
 //Initialize the MDNS service
 func initMDNS(rendezvous string) chan peer.AddrInfo {
-	ip := getOutBoundAddress()
-	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/" + ip + "/tcp/0"))
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/" + getOutBoundAddress() + "/tcp/0"))
 	if err != nil {
 		panic(err)
 	}
