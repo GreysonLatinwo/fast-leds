@@ -1,4 +1,4 @@
-package main
+package ledcontroller
 
 import (
 	"flag"
@@ -12,7 +12,7 @@ import (
 
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 
-	utils "github.com/greysonlatinwo/fast-leds/Utils"
+	utils "github.com/greysonlatinwo/fast-leds/utils"
 )
 
 var (
@@ -76,7 +76,7 @@ func main() {
 	defer ledController.Fini()
 
 	leds = ledController.Leds(0)
-	go rotatePresetHue(60)
+	go ledcontrols.rotatePresetHue(60)
 	renderLoop()
 }
 
@@ -131,7 +131,7 @@ func renderLoop() {
 	presetDone := make(chan struct{})
 	presetFPS := 150
 	presetArgs := make([]float64, 6)
-	presetFunc := confetti
+	presetFunc := ledcontrols.confetti
 	runPreset := func() {
 		isPresetRunning = true
 		defer func() {
@@ -187,7 +187,7 @@ func renderLoop() {
 				<-presetDone
 			}
 			presetFPS = 50
-			presetFunc = confetti
+			presetFunc = ledcontrols.confetti
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x4: // sinelon
@@ -196,7 +196,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = sinelon
+			presetFunc = ledcontrols.sinelon
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x5: // juggle
@@ -205,7 +205,7 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			presetFunc = juggle
+			presetFunc = ledcontrols.juggle
 			presetArgs[0] = float64(renderData[5]) / 255
 			go runPreset()
 		case 0x6: // spinning hue
@@ -220,7 +220,7 @@ func renderLoop() {
 			presetArgs[2] = float64(renderData[3]) / 255
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
-			presetFunc = rotatingHues
+			presetFunc = ledcontrols.rotatingHues
 			go runPreset()
 		}
 		ledController.Render()

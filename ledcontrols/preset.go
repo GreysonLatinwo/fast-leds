@@ -1,40 +1,43 @@
-package main
+package ledcontrols
 
 import (
 	"math"
 	"math/rand"
 
-	utils "github.com/greysonlatinwo/fast-leds/Utils"
+	utils "github.com/greysonlatinwo/fast-leds/utils"
 )
 
 // random colored speckles that blink in and fade smoothly (default 0.1)
-func confetti(args []float64) {
-	fadeToBlackBy(0.1)
+func Confetti(leds []uint32, args []float64) {
+	ledCount := len(leds)
+	FadeToBlackBy(leds, 0.1)
 	pos := rand.Intn(ledCount)
 	randPresetHue := utils.RotateColor(presetHue, rand.Float64()*64)
 	leds[pos] = utils.RGBToInt(randPresetHue[0], randPresetHue[1], randPresetHue[2])
 }
 
 // sine wave (default 45)
-func sinelon(args []float64) {
+func Sinelon(leds []uint32, args []float64) {
+	ledCount := len(leds)
 	var bpm float64 = args[0]
 	if bpm == 0 {
 		bpm = 45
 	}
 	// a colored dot sweeping back and forth, with fading trails
-	fadeToBlackBy(0.1)
+	FadeToBlackBy(leds, 0.1)
 	pos := beatsin16(bpm, 0, float64(ledCount)-1)
 	leds[pos] = utils.RGBToInt(presetHue[0], presetHue[1], presetHue[2])
 }
 
 // 8 sine waves (default 45)
-func juggle(args []float64) {
+func Juggle(leds []uint32, args []float64) {
+	ledCount := len(leds)
 	var bpm float64 = args[0]
 	if bpm == 0 {
 		bpm = 45
 	}
 	// a colored dot sweeping back and forth, with fading trails
-	fadeToBlackBy(0.1)
+	FadeToBlackBy(leds, 0.1)
 	var i float64 = 0
 	var numJuggles float64 = 8
 	for ; i < numJuggles; i += 1 {
@@ -45,7 +48,8 @@ func juggle(args []float64) {
 	}
 }
 
-func rotatingHues(args []float64) {
+func RotatingHues(leds []uint32, args []float64) {
+	ledCount := len(leds)
 	var hue1, hue2, hue3 float64 = args[0], args[1], args[2]
 	var brightness float64 = args[3]
 	bps := 2.0

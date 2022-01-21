@@ -1,3 +1,3 @@
 module github.com/greysonlatinwo/fast-leds/utils
 
-go 1.17
+go 1.16

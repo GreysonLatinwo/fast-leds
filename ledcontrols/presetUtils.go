@@ -1,10 +1,10 @@
-package main
+package ledcontrols
 
 import (
 	"math"
 	"time"
 
-	utils "github.com/greysonlatinwo/fast-leds/Utils"
+	utils "github.com/greysonlatinwo/fast-leds/utils"
 )
 
 var presetHue []float64 = []float64{255, 0, 0}
@@ -21,7 +21,8 @@ func rotatePresetHue(rps float64) {
 }
 
 // fadeby is a fraction (0, 1)
-func fadeToBlackBy(_fadeby float64) {
+func FadeToBlackBy(leds []uint32, _fadeby float64) {
+
 	fadeby := 1 - _fadeby
 	for i := range leds {
 		r, g, b := utils.IntToRGB(leds[i])
