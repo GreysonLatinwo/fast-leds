@@ -85,11 +85,11 @@ func renderLoop() {
 	}
 	defer pc.Close()
 	log.Println("Visualizing")
-	renderData := make([]uint8, 6)
+	renderData := make([]uint8, 10)
 	killPreset := make(chan struct{})
 	presetDone := make(chan struct{})
 	presetFPS := 150
-	presetArgs := make([]float64, 6)
+	presetArgs := make([]float64, 9)
 	var presetFunc func([]uint32, []float64)
 	runPreset := func() {
 		isPresetRunning = true
