@@ -90,8 +90,9 @@ func RotatingColors(leds []uint32, args []float64) {
 
 	colorCount := len(colors)
 	coloridx := 0
+	chunkSize := math.Min(16, float64(ledCount)/4)
 	for i := 0; i < ledCount; {
-		for j := i; i-j < 8; i++ {
+		for j := i; i-j < int(chunkSize); i++ {
 			pos := (i + offset) % ledCount
 			leds[pos] = colors[coloridx]
 		}
