@@ -15,7 +15,7 @@ const UDPClientPort = ":1234"
 
 var Uaddr *net.UDPAddr
 
-var ledCommPipe = make(chan [6]byte, colorUpdateBufSize)
+var ledCommPipe = make(chan [10]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
 	Server  *net.UDPConn
@@ -56,7 +56,7 @@ func listenForPeers(peerListen chan peer.AddrInfo, remote *remoteLeds) {
 }
 
 //takes the color output and tells the network
-func colorServer(remote *remoteLeds, colorUpdate chan [6]byte) {
+func colorServer(remote *remoteLeds, colorUpdate chan [10]byte) {
 	for color := range colorUpdate {
 		//log.Println("color:", color)
 		go writeToLocalLeds(color)
@@ -64,11 +64,11 @@ func colorServer(remote *remoteLeds, colorUpdate chan [6]byte) {
 	}
 }
 
-func writeToLocalLeds(color [6]byte) {
+func writeToLocalLeds(color [10]byte) {
 	os.Stdout.Write(color[:])
 }
 
-func (r remoteLeds) writeToLeds(color [6]byte) {
+func (r remoteLeds) writeToLeds(color [10]byte) {
 	for _, client := range r.Clients {
 		r.Server.WriteTo(color[:], client)
 	}

@@ -20,7 +20,7 @@ func IntToRGB(x uint32) (float64, float64, float64) {
 }
 
 // hue [0,1]
-func HueToRGB(v1, v2, h float64) float64 {
+func HueToRGBHelper(v1, v2, h float64) float64 {
 	if h < 0 {
 		h += 1
 	}
@@ -55,11 +55,16 @@ func HSLToRGB(h, s, l float64) (float64, float64, float64) {
 
 	v1 = 2*l - v2
 
-	r := HueToRGB(v1, v2, h+(1.0/3.0))
-	g := HueToRGB(v1, v2, h)
-	b := HueToRGB(v1, v2, h-(1.0/3.0))
+	r := HueToRGBHelper(v1, v2, h+(1.0/3.0))
+	g := HueToRGBHelper(v1, v2, h)
+	b := HueToRGBHelper(v1, v2, h-(1.0/3.0))
 
 	return r * 255, g * 255, b * 255
+}
+
+//all values [0,1]
+func HueToRGB(hue float64, brightness float64) (float64, float64, float64) {
+	return HSLToRGB(hue, 1, 0.5*brightness)
 }
 
 // rotates rgb float value by degrees. https://flylib.com/books/2/816/1/html/2/files/fig11_14.jpeg

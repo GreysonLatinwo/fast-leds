@@ -76,11 +76,11 @@ func main() {
 
 func renderLoop() {
 	log.Println("Visualizing")
-	renderData := make([]uint8, 6)
+	renderData := make([]uint8, 10)
 	killPreset := make(chan struct{})
 	presetDone := make(chan struct{})
 	presetFPS := 150
-	presetArgs := make([]float64, 6)
+	presetArgs := make([]float64, 9)
 	presetFunc := utils.Confetti
 	runPreset := func() {
 		isPresetRunning = true
@@ -90,7 +90,6 @@ func renderLoop() {
 		}()
 		ticker := time.NewTicker(time.Second / time.Duration(presetFPS))
 		for {
-			<-ticker.C
 			select {
 			case <-ticker.C:
 				presetFunc(leds, presetArgs)
@@ -167,13 +166,33 @@ func renderLoop() {
 				killPreset <- struct{}{}
 				<-presetDone
 			}
-			//color
+			//hues
 			presetArgs[0] = float64(renderData[1]) / 255
 			presetArgs[1] = float64(renderData[2]) / 255
 			presetArgs[2] = float64(renderData[3]) / 255
 			//brightness
 			presetArgs[3] = float64(renderData[4]) / 255
 			presetFunc = utils.RotatingHues
+			go runPreset()
+		case 0x7: // spinning colors
+			log.Println("spinning colors", renderData)
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			//bpm
+			presetArgs[0] = float64(renderData[1])
+			//hues
+			presetArgs[1] = float64(renderData[2]) / 255
+			presetArgs[2] = float64(renderData[3]) / 255
+			presetArgs[3] = float64(renderData[4]) / 255
+			presetArgs[4] = float64(renderData[5]) / 255
+			//brightness
+			presetArgs[5] = float64(renderData[6]) / 255
+			presetArgs[6] = float64(renderData[7]) / 255
+			presetArgs[7] = float64(renderData[8]) / 255
+			presetArgs[8] = float64(renderData[9]) / 255
+			presetFunc = utils.RotatingColors
 			go runPreset()
 		}
 		ledController.Render()

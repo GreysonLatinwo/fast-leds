@@ -59,14 +59,20 @@
                     l: l
                 };
             }
+
+            function sendpreset(preset){
+                fetch('/preset/setPreset?'+preset, {
+                    method: 'post',
+                    mode: "no-cors"
+                })
+                console.log("Preset:", preset)
+            }
             
-            function sendPreset(preset){
-                color1 = document.getElementById("color1").value
-                color2 = document.getElementById("color2").value
-                color3 = document.getElementById("color3").value
+            function sendSpinningHue(preset){
+                color1 = document.getElementById("hue1").value
+                color2 = document.getElementById("hue2").value
+                color3 = document.getElementById("hue3").value
                 brightness = document.getElementById("brightness").value
-
-
 
                 hue1 = HEXtoHSL(color1).h
                 hue2 = HEXtoHSL(color2).h
@@ -77,7 +83,68 @@
                     method: 'post',
                     mode: "no-cors"
                 })
-                console.log("Preset:", preset)
+                console.log("Preset:", dataStrOut)
+            }
+
+            function sendSpinningColor(preset){
+                color1 = document.getElementById("color1").value
+                color2 = document.getElementById("color2").value
+                color3 = document.getElementById("color3").value
+                color4 = document.getElementById("color4").value
+                bpm = document.getElementById("bpm").value
+
+                hue1 = HEXtoHSL(color1).h
+                hue2 = HEXtoHSL(color2).h
+                hue3 = HEXtoHSL(color3).h
+                hue4 = HEXtoHSL(color4).h
+
+                b1 = HEXtoHSL(color1).l*2
+                b2 = HEXtoHSL(color2).l*2
+                b3 = HEXtoHSL(color3).l*2
+                b4 = HEXtoHSL(color4).l*2
+                dataOut = [
+                    preset, 
+                    //beats per minute
+                    bpm,
+                    //hues
+                    Number(hue1/360*255).toFixed(0), 
+                    Number(hue2/360*255).toFixed(0), 
+                    Number(hue3/360*255).toFixed(0), 
+                    Number(hue4/360*255).toFixed(0), 
+                    //brighnesses
+                    Number(b1/100*255).toFixed(0), 
+                    Number(b2/100*255).toFixed(0), 
+                    Number(b3/100*255).toFixed(0), 
+                    Number(b4/100*255).toFixed(0)
+                ]
+                dataStrOut = dataOut.join(",")
+                fetch('/preset/setPreset?'+dataStrOut, {
+                    method: 'post',
+                    mode: "no-cors"
+                })
+                console.log("Preset:", dataStrOut)
+            }
+
+            function updateUI(uiFormName) {
+                //hide all other preset forms
+                uiforms = document.getElementsByName("presetForm")
+                uiforms.forEach(function(uiform, index, arr){
+                    uiform.style.display = "none";
+                });
+                document.getElementById("simplePreset").style.display = "none"
+                switch(uiFormName) {
+                case 'spinningHues':
+                    document.getElementById("spinninghueform").style.display = "block"
+                    break;
+                case 'spinningColors':
+                    document.getElementById("spinningcolorform").style.display = "block"
+                    break;
+                case '':
+                    break;
+                default:
+                    document.getElementById("simplePreset").style.display = "block"
+                    break;
+                }
             }
         </script>
     </head>
@@ -88,31 +155,57 @@
             <a href="/static" class="btn btn-Primary" role="button">Static Colors</a>
         </div>
         <div class="container d-flex justify-content-center">
-            <div class="col justify-content-center" id="static">
+            <div class="col justify-content-center">
                 <label>Choose Preset:</label>
                 <form>
-                    <select class="form-select form-select-lg" id="presetSelector">
-                      <option value="Confetti">Confetti</option>
-                      <option value="Sinelon">Sinelon</option>
-                      <option value="Juggle">Juggle</option>
-                      <option value="spinningHues">Spinning Hues</option>
+                    <select value="" class="form-select form-select-lg" id="presetSelector" onchange=updateUI(this.value)>
+                        <option value="">--Please choose an option--</option>
+                        <option value="Confetti">Confetti</option>
+                        <option value="Sinelon">Sinelon</option>
+                        <option value="Juggle">Juggle</option>
+                        <option value="spinningHues">Spinning Hues</option>
+                        <option value="spinningColors">Spinning Colors</option>
                     </select>
                 </form>
-                <label>Choose Spinning Hues:</label>
-                <div class="mb-3">
-                    <input id="color1" type="color" value="#00ffff" style="width: 32%; height: 80px;">
-                    <input id="color2" type="color" value="#aa00ff" style="width: 33%; height: 80px;">
-                    <input id="color3" type="color" value="#00ffbf" style="width: 32%; height: 80px;">
+                <div class="d-flex">
+                    <button type="button" class="btn btn-primary btn-block" id="simplePreset" style="display: none;" onclick="sendPreset(document.getElementById('presetSelector').value)">Set Preset</button>
                 </div>
-                <div>
-                    <label for="brightness">Brightness</label>
-                    <div class="d-flex justify-content-center">
-                        <input type="range" id="brightness" style="width: 90%;" min="0" max="128" value="128" oninput="this.nextElementSibling.value = this.value">
-                        <output>128</output>
+                <div id="spinninghueform" name="presetForm" style="display: none;">
+                    <label>Choose Spinning Hues:</label>
+                    <div class="d-flex mb-3 justify-content-around">
+                        <input class="flex-fill" id="hue1" type="color" value="#00ffff" style="height: 80px;">
+                        <input class="flex-fill" id="hue2" type="color" value="#aa00ff" style="height: 80px;">
+                        <input class="flex-fill" id="hue3" type="color" value="#00ffbf" style="height: 80px;">
+                    </div>
+                    <div>
+                        <label for="brightness">Brightness</label>
+                        <div class="d-flex justify-content-center">
+                            <input type="range" id="brightness" style="width: 90%;" min="0" max="255" value="128" oninput="this.nextElementSibling.value = this.value">
+                            <output>128</output>
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <button type="button" class="btn btn-primary btn-block" id="send" onclick="sendSpinningHue(document.getElementById('presetSelector').value)">Set Preset</button>
                     </div>
                 </div>
-                <div class="d-flex">
-                    <button type="button" class="btn btn-primary btn-block" id="send" onclick="sendPreset(document.getElementById('presetSelector').value)">Set Preset</button>
+                <div id="spinningcolorform" name="presetForm" style="display: none;">
+                    <label>Choose Spinning Hues:</label>
+                    <div class="d-flex mb-3 justify-content-around">
+                        <input class="flex-fill" id="color1" type="color" value="#ff0000" style="height: 80px;">
+                        <input class="flex-fill" id="color2" type="color" value="#000000" style="height: 80px;">
+                        <input class="flex-fill" id="color3" type="color" value="#0000ff" style="height: 80px;">
+                        <input class="flex-fill" id="color4" type="color" value="#000000" style="height: 80px;">
+                    </div>
+                    <div>
+                        <label for="bpm">BPM</label>
+                        <div class="d-flex justify-content-center">
+                            <input type="range" id="bpm" style="width: 90%;" min="0" max="60" value="30" oninput="this.nextElementSibling.value = this.value">
+                            <output>30</output>
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <button type="button" class="btn btn-primary btn-block" id="send" onclick="sendSpinningColor(document.getElementById('presetSelector').value)">Set Preset</button>
+                    </div>
                 </div>
             </div>
         </div>

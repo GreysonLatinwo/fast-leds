@@ -24,7 +24,7 @@ func main() {
 
 	switch startupSetting {
 	case 0: //off
-		ledCommPipe <- [6]byte{2, 0, 0, 0, 0, 0}
+		ledCommPipe <- [10]byte{2, 0, 0, 0, 0, 0, 0, 0}
 	case 1: //listen to music
 		go ProcessAudioStream()
 	}

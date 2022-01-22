@@ -185,6 +185,26 @@ func renderLoop() {
 			presetArgs[3] = float64(renderData[4]) / 255
 			presetFunc = utils.RotatingHues
 			go runPreset()
+		case 0x7: // spinning colors
+			log.Println("spinning colors", renderData)
+			if isPresetRunning {
+				killPreset <- struct{}{}
+				<-presetDone
+			}
+			//bpm
+			presetArgs[0] = float64(renderData[1])
+			//hues
+			presetArgs[1] = float64(renderData[2]) / 255
+			presetArgs[2] = float64(renderData[3]) / 255
+			presetArgs[3] = float64(renderData[4]) / 255
+			presetArgs[4] = float64(renderData[5]) / 255
+			//brightness
+			presetArgs[5] = float64(renderData[6]) / 255
+			presetArgs[6] = float64(renderData[7]) / 255
+			presetArgs[7] = float64(renderData[8]) / 255
+			presetArgs[8] = float64(renderData[9]) / 255
+			presetFunc = utils.RotatingColors
+			go runPreset()
 		}
 		ledController.Render()
 	}

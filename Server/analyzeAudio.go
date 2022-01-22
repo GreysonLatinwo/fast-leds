@@ -86,7 +86,7 @@ func ProcessAudioStream() {
 		pxx = utils.NormalizePower(pxx)
 
 		color := computeRGBColor(pxx, uint32(sampleRate), opt.Pad)
-		ledCommPipe <- [6]byte{1, color[0], color[1], color[2], 0, 0}
+		ledCommPipe <- [10]byte{1, color[0], color[1], color[2], 0, 0, 0, 0}
 	}
 }
 

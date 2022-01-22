@@ -30,7 +30,7 @@ func init() {
 		presetData := strings.Split(r.URL.RawQuery, ",")
 		presetStr := presetData[0]
 		var presetInt uint8 = 0
-		args := []uint8{0, 0, 0, 0}
+		args := [10]byte{0, 0, 0, 0, 0, 0, 0, 0, 0}
 		switch strings.ToLower(presetStr) {
 		case "confetti":
 			presetInt = 3
@@ -50,15 +50,37 @@ func init() {
 			args[2] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[3])).(int))
 			//brightness [0,255]
 			args[3] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[4])).(int))
+		case "spinningcolors":
+			if len(presetData) < 10 {
+				log.Println("Malformat:", r.URL.RawQuery)
+				return
+			}
+			presetInt = 7
+			// bpm
+			args[0] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[1])).(int))
+			// hues
+			args[1] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[2])).(int))
+			args[2] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[3])).(int))
+			args[3] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[4])).(int))
+			args[4] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[5])).(int))
+			// brightness
+			args[5] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[6])).(int))
+			args[6] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[7])).(int))
+			args[7] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[8])).(int))
+			args[8] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[9])).(int))
 		}
 
-		ledCommPipe <- [6]byte{
+		ledCommPipe <- [10]byte{
 			presetInt,
 			args[0],
 			args[1],
 			args[2],
 			args[3],
-			0,
+			args[4],
+			args[5],
+			args[6],
+			args[7],
+			args[8],
 		}
 	})
 
@@ -81,7 +103,7 @@ func init() {
 		if err != nil {
 			return
 		}
-		ledCommPipe <- [6]byte{2, byte(red), byte(green), byte(blue), 0, 0}
+		ledCommPipe <- [10]byte{2, byte(red), byte(green), byte(blue), 0, 0, 0, 0}
 		log.Println("Static color:", red, green, blue)
 	})
 	http.HandleFunc("/favicon.ico", func(rw http.ResponseWriter, r *http.Request) {
