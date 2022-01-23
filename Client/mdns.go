@@ -50,7 +50,7 @@ func getOutBoundAddress() string {
 func initMDNS(rendezvous string) chan peer.AddrInfo {
 	myIP := getOutBoundAddress()
 	log.Println(myIP)
-	host, err := libp2p.New(libp2p.ListenAddrStrings("/dns4/" + myIP + "/tcp/0"))
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/" + myIP + "/tcp/0"))
 	if err != nil {
 		panic(err)
 	}
