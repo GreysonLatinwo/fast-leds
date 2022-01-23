@@ -2,7 +2,9 @@ package main
 
 import (
 	"net"
+	"os"
 
+	"github.com/greysonlatinwo/fast-leds/utils"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
@@ -41,7 +43,7 @@ func getOutBoundAddress() string {
 			return ip.String()
 		}
 	}
-	return "0.0.0.0"
+	return utils.HandleErrPrint(os.Hostname()).(string)
 }
 
 //Initialize the MDNS service

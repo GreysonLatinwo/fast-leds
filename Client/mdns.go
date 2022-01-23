@@ -1,9 +1,10 @@
 package main
 
 import (
-	"errors"
 	"net"
+	"os"
 
+	"github.com/greysonlatinwo/fast-leds/utils"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -19,7 +20,7 @@ func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 	n.PeerChan <- pi
 }
 
-func getOutBoundAddress() (string, error) {
+func getOutBoundAddress() string {
 	ifaces, _ := net.Interfaces()
 	// handle err
 	for _, i := range ifaces {
@@ -40,19 +41,15 @@ func getOutBoundAddress() (string, error) {
 			if ip == nil {
 				continue // not an ipv4 address
 			}
-			return ip.String(), nil
+			return ip.String()
 		}
 	}
-	return "", errors.New("idk what happened -_-")
+	return utils.HandleErrPrint(os.Hostname()).(string)
 }
 
 //Initialize the MDNS service
 func initMDNS(rendezvous string) chan peer.AddrInfo {
-	ip, err := getOutBoundAddress()
-	if err != nil {
-		panic("couldnt get outbound ip")
-	}
-	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/" + ip + "/tcp/0"))
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/" + getOutBoundAddress() + "/tcp/0"))
 	if err != nil {
 		panic(err)
 	}
