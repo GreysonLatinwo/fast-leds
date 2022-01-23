@@ -84,6 +84,7 @@ func renderLoop() {
 		panic(err)
 	}
 	defer pc.Close()
+	pc.WriteToUDP([]byte{7, 10, 136, 210, 113, 0, 128, 128, 128, 0}, udpip)
 	log.Println("Visualizing")
 	renderData := make([]uint8, 10)
 	killPreset := make(chan struct{})
