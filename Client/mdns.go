@@ -1,10 +1,9 @@
 package main
 
 import (
+	"log"
 	"net"
-	"os"
 
-	"github.com/greysonlatinwo/fast-leds/utils"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -44,12 +43,14 @@ func getOutBoundAddress() string {
 			return ip.String()
 		}
 	}
-	return utils.HandleErrPrint(os.Hostname()).(string)
+	return "0.0.0.0"
 }
 
 //Initialize the MDNS service
 func initMDNS(rendezvous string) chan peer.AddrInfo {
-	host, err := libp2p.New(libp2p.ListenAddrStrings("/dns4/" + getOutBoundAddress() + "/tcp/0"))
+	myIP := getOutBoundAddress()
+	log.Println(myIP)
+	host, err := libp2p.New(libp2p.ListenAddrStrings("/dns4/" + myIP + "/tcp/0"))
 	if err != nil {
 		panic(err)
 	}
