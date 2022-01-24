@@ -143,7 +143,7 @@ func renderLoop() {
 				<-presetDone
 			}
 			intColor := utils.RGBToInt(float64(renderData[1]), float64(renderData[2]), float64(renderData[3]))
-			renderFunc(leds, ledCount, intColor)
+			utils.SetStaticLeds(leds, ledCount, intColor)
 		case 0x3: // confetti
 			log.Println("confetti", renderData)
 			if isPresetRunning {

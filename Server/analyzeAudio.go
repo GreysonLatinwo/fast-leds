@@ -34,7 +34,9 @@ var (
 	redInScale            float64             = 1.25
 	greenInScale          float64             = 1.33
 	blueInScale           float64             = 1.5
-	colorOutScale         float64             = 1.5
+	redOutScale           float64             = 1.5
+	greenOutScale         float64             = 1.5
+	blueOutScale          float64             = 1.5
 	fftColor              []byte              = []byte{0, 0, 0}
 	fftRedBuffer          []float64           = []float64{}
 	fftGreenBuffer        []float64           = []float64{}
@@ -115,16 +117,13 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenFFTMax := findMax(pxx[greenLowerIdx:greenUpperIdx]) * greenInScale
 	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * blueInScale
 
-	//make strongest value more prominent to exaggerate them in the leds
-	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
-		blueFFTMax *= 2
-		greenFFTMax *= 1.5
-	} else if greenFFTMax > blueFFTMax && greenFFTMax > redFFTMax {
-		greenFFTMax *= 2
-		redFFTMax *= 1.5
-	} else if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
-		redFFTMax *= 2
-		blueFFTMax *= 1.5
+	//make stronger values more prominent to exaggerate them in the leds
+	if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
+		blueFFTMax *= 0.66
+	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
+		greenFFTMax *= 0.66
+	} else if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
+		redFFTMax *= 0.66
 	}
 
 	//we shouldnt have to recompute entire average every time
@@ -166,9 +165,9 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	blueAvg /= float64(len(fftBlueBuffer))
 
 	// scale output color by users request
-	redAvg *= colorOutScale
-	greenAvg *= colorOutScale
-	blueAvg *= colorOutScale
+	redAvg *= redOutScale
+	greenAvg *= greenOutScale
+	blueAvg *= blueOutScale
 
 	rgbRotated := utils.RotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
 	fftColor = utils.ClampRGBColor(rgbRotated)

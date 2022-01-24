@@ -61,12 +61,16 @@
                     document.getElementById("greenEnergy").value = responseJson['FFTGreenBufferSize']
                     document.getElementById("blueEnergy").value = responseJson['FFTBlueBufferSize']
                     document.getElementById("cShift").value = responseJson['ColorShift']
-                    document.getElementById("colorScale").value = responseJson['ColorScaler']
                     document.getElementById("fftWindow").value = fftWindowsValues[responseJson['FFTWindowType']]
 
                     document.getElementById("redInScale").value = responseJson['RedInScale']
                     document.getElementById("greenInScale").value = responseJson['GreenInScale']
                     document.getElementById("blueInScale").value = responseJson['BlueInScale']
+                    
+                    document.getElementById("redOutScale").value = responseJson['RedOutScale']
+                    document.getElementById("greenOutScale").value = responseJson['GreenOutScale']
+                    document.getElementById("blueOutScale").value = responseJson['BlueOutScale']
+
                     document.getElementById("redFreqLowerRange").value = responseJson['RedLowerFreq']
                     document.getElementById("redFreqUpperRange").value = responseJson['RedUpperFreq']
                     document.getElementById("greenFreqLowerRange").value = responseJson['GreenLowerFreq']
@@ -80,17 +84,22 @@
                     document.getElementById("greenEnergyLabel").innerHTML += responseJson['FFTGreenBufferSize']
                     document.getElementById("blueEnergyLabel").innerHTML += responseJson['FFTBlueBufferSize']
                     document.getElementById("cShiftLabel").innerHTML += responseJson['ColorShift']
-                    document.getElementById("colorScaleLabel").innerHTML += responseJson['ColorScaler']
                     document.getElementById("fftWindowLabel").innerHTML += responseJson['FFTWindowType']
                     
                     document.getElementById("redInScaleLabel").innerHTML += responseJson['RedInScale']
                     document.getElementById("greenInScaleLabel").innerHTML += responseJson['GreenInScale']
                     document.getElementById("blueInScaleLabel").innerHTML += responseJson['BlueInScale']
+
+                    document.getElementById("redOutScaleLabel").innerHTML += responseJson['RedOutScale']
+                    document.getElementById("greenOutScaleLabel").innerHTML += responseJson['GreenOutScale']
+                    document.getElementById("blueOutScaleLabel").innerHTML += responseJson['BlueOutScale']
+
                     document.getElementById("redFreqLowerRangeLabel").innerHTML += responseJson['RedLowerFreq']
-                    document.getElementById("redFreqUpperRangeLabel").innerHTML += responseJson['RedUpperFreq']
                     document.getElementById("greenFreqLowerRangeLabel").innerHTML += responseJson['GreenLowerFreq']
-                    document.getElementById("greenFreqUpperRangeLabel").innerHTML += responseJson['GreenUpperFreq']
                     document.getElementById("blueFreqLowerRangeLabel").innerHTML += responseJson['BlueLowerFreq']
+
+                    document.getElementById("redFreqUpperRangeLabel").innerHTML += responseJson['RedUpperFreq']
+                    document.getElementById("greenFreqUpperRangeLabel").innerHTML += responseJson['GreenUpperFreq']
                     document.getElementById("blueFreqUpperRangeLabel").innerHTML += responseJson['BlueUpperFreq']
                 })
             })
@@ -134,12 +143,10 @@
                 case 5:
                     //high red high green high blue, fft rectangular
                     updateMusicEnergyTypes(12, 12, 12, 6)
-                    setOutColorScale(1)
                     break;
                 case 6:
                     //1 red 1 green 1 blue, fft rectangular
                     updateMusicEnergyTypes(4, 8, 6, 6)
-                    setOutColorScale(1)
                     break;
                 case 7:
                     //1 red 1 green 1 blue, fft rectangular
@@ -166,9 +173,9 @@
             xmlHttpReq.send();
         }
 
-        function setOutColorScale(scaleColor) {
+        function setOutColorScale(color, scaleColor) {
             let xmlHttpReq = new XMLHttpRequest();
-            xmlHttpReq.open("GET", "/music/setOutColorScale?"+Number(scaleColor));
+            xmlHttpReq.open("GET", "/music/setColorOutScale?"+color+"="+Number(scaleColor));
             xmlHttpReq.send();
         }
 
@@ -199,7 +206,7 @@
     </div>
     <div class="d-flex flex-row justify-content-between">
         <div id="fftPlot"></div>
-        <div id="colorPlot"></div>
+        <div class="container justify-content-around d-flex" id="colorPlot"></div>
     </div>
     <div class="container d-flex mt-2">
         <button type="button" class="btn-lg btn-primary btn-block" id="send" onclick="sendMusic()">Follow the Music</button>
@@ -214,10 +221,6 @@
         <div class="container">
             <label class="h4 strokeme" for="cShift" id="cShiftLabel">Color Shift: </label>
             <input type="range" class="form-range" id="cShift" value="0" min="0" max="360" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Color Shift: '+this.value" onchange="setColorShift(this.value)">
-        </div>
-        <div class="container">
-            <label class="h4 strokeme" for="colorScale" id="colorScaleLabel">Scale Colors: </label>
-            <input type="range" class="form-range" id="colorScale" step="0.1" value="1.5" min="0" max="5" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Scale Colors: '+this.value" onchange="setOutColorScale(this.value)">
         </div>
         <div class="container">
             <label class="h4 strokeme" for="fftWindow" id="fftWindowLabel">FFT Window: </label>
@@ -254,6 +257,23 @@
         <div class="container">
             <label class="h4 strokeme text-primary" for="blueInScale" id="blueInScaleLabel">Blue Input Weight: </label>
             <input type="range" class="form-range" id="blueInScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Input Weight: '+this.value" onchange="setInColorScale('blue',this.value)">
+        </div>
+    </div>
+
+    <div class="container d-flex flex-row justify-content-between mt-4">
+        <div class="container">
+            <label class="h4 strokeme text-danger" for="redOutScale" id="redOutScaleLabel">Red Output Weight: </label>
+            <input type="range" class="form-range" id="redOutScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Red Output Weight: '+this.value" onchange="setOutColorScale('red',this.value)">
+        </div>
+        
+        <div class="container">
+            <label class="h4 strokeme text-success" for="greenOutScale" id="greenOutScaleLabel">Green Output Weight: </label>
+            <input type="range" class="form-range" id="greenOutScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Green Output Weight: '+this.value" onchange="setOutColorScale('green',this.value)">
+        </div>
+
+        <div class="container">
+            <label class="h4 strokeme text-primary" for="blueOutScale" id="blueOutScaleLabel">Blue Output Weight: </label>
+            <input type="range" class="form-range" id="blueOutScale" value="1" min="0" max="5" step="0.05" style="width: 100%;" oninput="this.previousElementSibling.innerHTML = 'Blue Output Weight: '+this.value" onchange="setOutColorScale('blue',this.value)">
         </div>
     </div>
 
@@ -317,7 +337,7 @@
         };
 
         // Display using Plotly
-        Plotly.newPlot("fftPlot", data, fftInitLayout);
+        //Plotly.newPlot("fftPlot", data, fftInitLayout);
         Plotly.newPlot("colorPlot", data1, colorInitLayout);
 
         function range(start, end) {
@@ -349,8 +369,6 @@
                     g = pad(g, 2)
                     b = pad(b, 2)
 
-                    //document.body.style.backgroundColor = "#"+r+g+b raspberry
-
                     data1 = [{
                         x: ['red', 'green', 'blue'],
                         y: fftData.Color,
@@ -360,8 +378,8 @@
                         },
                     }];
                     var colorInitLayout = {
-                        width: window.innerWidth*0.33,
-                        height: window.innerHeight*0.66,
+                        width: window.innerWidth,
+                        height: window.innerHeight*0.5,
                         xaxis: {range: [-1, 3]},
                         yaxis: {range: [0, 255], title: "power"},  
                         title: "Color"

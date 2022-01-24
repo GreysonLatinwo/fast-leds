@@ -11,7 +11,7 @@ func Confetti(leds []uint32, args []float64) {
 	FadeToBlackBy(leds, 0.1)
 	pos := rand.Intn(ledCount)
 	randPresetHue := RotateColor(presetHue, rand.Float64()*64)
-	leds[pos] = RGBToInt(randPresetHue[0], randPresetHue[1], randPresetHue[2])
+	leds[pos] |= RGBToInt(randPresetHue[0], randPresetHue[1], randPresetHue[2])
 }
 
 // sine wave (default 45)
@@ -24,7 +24,7 @@ func Sinelon(leds []uint32, args []float64) {
 	// a colored dot sweeping back and forth, with fading trails
 	FadeToBlackBy(leds, 0.1)
 	pos := beatsin16(bpm, 0, float64(ledCount)-1)
-	leds[pos] = RGBToInt(presetHue[0], presetHue[1], presetHue[2])
+	leds[pos] |= RGBToInt(presetHue[0], presetHue[1], presetHue[2])
 }
 
 // 8 sine waves (default 45)
@@ -42,7 +42,7 @@ func Juggle(leds []uint32, args []float64) {
 		colorOffset := (360 / numJuggles) * i
 		pos := beatsin16(bpm+(i+7), 0, float64(ledCount)-1)
 		shiftedPresetHue := RotateColor(presetHue, colorOffset)
-		leds[pos] = RGBToInt(shiftedPresetHue[0], shiftedPresetHue[1], shiftedPresetHue[2])
+		leds[pos] |= RGBToInt(shiftedPresetHue[0], shiftedPresetHue[1], shiftedPresetHue[2])
 	}
 }
 

@@ -193,14 +193,23 @@ func init() {
 			blueInScale = scaleVal
 		}
 	})
-	http.HandleFunc("/music/setOutColorScale", func(rw http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/music/setColorOutScale", func(rw http.ResponseWriter, r *http.Request) {
 		scaleData := r.URL.RawQuery
-		scaleVal, err := strconv.ParseFloat(scaleData, 64)
+		scaleParsed := strings.Split(scaleData, "=")
+		scaleColor := scaleParsed[0]
+		scaleVal, err := strconv.ParseFloat(scaleParsed[1], 64)
 		if err != nil {
 			utils.CheckError(err)
 			return
 		}
-		colorOutScale = scaleVal
+		switch strings.ToLower(scaleColor) {
+		case "red":
+			redOutScale = scaleVal
+		case "green":
+			greenOutScale = scaleVal
+		case "blue":
+			blueOutScale = scaleVal
+		}
 	})
 	http.HandleFunc("/music/setColorFreqRange", func(rw http.ResponseWriter, r *http.Request) {
 		ColorFreqData := r.URL.RawQuery
@@ -268,7 +277,9 @@ func init() {
 			FFTBlueBufferSize     int
 			FFTWindowType         string
 			ColorShift            float64
-			ColorScaler           float64
+			RedOutScale           float64
+			GreenOutScale         float64
+			BlueOutScale          float64
 			RedInScale            float64
 			GreenInScale          float64
 			BlueInScale           float64
@@ -286,7 +297,9 @@ func init() {
 			FFTBlueBufferSize:     fftBlueBufferSize,
 			FFTWindowType:         windowType,
 			ColorShift:            fftColorShift,
-			ColorScaler:           colorOutScale,
+			RedOutScale:           redOutScale,
+			GreenOutScale:         greenOutScale,
+			BlueOutScale:          blueOutScale,
 			RedInScale:            redInScale,
 			GreenInScale:          greenInScale,
 			BlueInScale:           blueInScale,
