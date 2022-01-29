@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	utils "github.com/greysonlatinwo/fast-leds/utils"
 	"github.com/mjibson/go-dsp/window"
@@ -70,6 +71,12 @@ func init() {
 			args[8] = uint8(utils.HandleErrPrint(strconv.Atoi(presetData[9])).(int))
 		}
 
+		// probably should convert isProcess(ing)AudioStream into a chan
+		for isProcessAudioStream {
+			time.Sleep(time.Duration(time.Millisecond * 100))
+			continue
+		}
+
 		ledCommPipe <- [10]byte{
 			presetInt,
 			args[0],
@@ -103,6 +110,13 @@ func init() {
 		if err != nil {
 			return
 		}
+
+		// probably should convert isProcess(ing)AudioStream into a chan
+		for isProcessAudioStream {
+			time.Sleep(time.Duration(time.Millisecond * 100))
+			continue
+		}
+
 		ledCommPipe <- [10]byte{2, byte(red), byte(green), byte(blue), 0, 0, 0, 0}
 		log.Println("Static color:", red, green, blue)
 	})
@@ -276,7 +290,6 @@ func init() {
 			FFTGreenBufferSize    int
 			FFTBlueBufferSize     int
 			FFTWindowType         string
-			ColorShift            float64
 			RedOutScale           float64
 			GreenOutScale         float64
 			BlueOutScale          float64
@@ -296,7 +309,6 @@ func init() {
 			FFTGreenBufferSize:    fftGreenBufferSize,
 			FFTBlueBufferSize:     fftBlueBufferSize,
 			FFTWindowType:         windowType,
-			ColorShift:            fftColorShift,
 			RedOutScale:           redOutScale,
 			GreenOutScale:         greenOutScale,
 			BlueOutScale:          blueOutScale,
@@ -313,13 +325,5 @@ func init() {
 		})
 		utils.CheckError(err)
 		rw.Write(vars)
-	})
-	http.HandleFunc("/music/setColorShift", func(rw http.ResponseWriter, r *http.Request) {
-		colorShift, err := strconv.ParseFloat(r.URL.RawQuery, 64)
-		if err != nil {
-			utils.CheckError(err)
-			return
-		}
-		fftColorShift = colorShift
 	})
 }

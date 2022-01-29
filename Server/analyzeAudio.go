@@ -24,7 +24,6 @@ var (
 	fftRedBufferSize      int                 = 12
 	fftGreenBufferSize    int                 = 32
 	fftBlueBufferSize     int                 = 16
-	fftColorShift         float64             = 0
 	redLowerFreq          int                 = 80
 	redUpperFreq          int                 = 200
 	greenLowerFreq        int                 = 200
@@ -169,7 +168,6 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenAvg *= greenOutScale
 	blueAvg *= blueOutScale
 
-	rgbRotated := utils.RotateColor([]float64{redAvg, greenAvg, blueAvg}, fftColorShift)
-	fftColor = utils.ClampRGBColor(rgbRotated)
+	fftColor = utils.ClampRGBColor([]float64{redAvg, greenAvg, blueAvg})
 	return fftColor
 }

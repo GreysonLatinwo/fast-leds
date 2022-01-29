@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -46,6 +48,21 @@ func parseRenderType(renderType string) error {
 }
 
 func main() {
+	// set Default settings from led.conf
+	data, err := os.ReadFile("../led.conf")
+	if err != nil {
+		panic(err)
+	}
+	LedConf := struct {
+		LedCount   int
+		Brightness int
+		RenderType string
+	}{}
+	json.Unmarshal(data, &LedConf)
+	brightness = LedConf.Brightness
+	ledCount = LedConf.LedCount
+	parseRenderType(LedConf.RenderType)
+
 	//set and read flags
 	flag.IntVar(&ledCount, "c", ledCount, "number of leds in the strip connected")
 	flag.IntVar(&brightness, "b", brightness, "Max brightness of the leds")
@@ -63,7 +80,7 @@ func main() {
 	opt := ws2811.DefaultOptions
 	opt.Channels[0].Brightness = brightness
 	opt.Channels[0].LedCount = ledCount
-	var err error
+
 	ledController, err = ws2811.MakeWS2811(&opt)
 	utils.CheckError(err)
 	utils.CheckError(ledController.Init())

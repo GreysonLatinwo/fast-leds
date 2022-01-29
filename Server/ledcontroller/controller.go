@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -34,19 +35,36 @@ func parseRenderType(renderType string) error {
 		return nil
 	}
 	if utils.Contains(renderParams, "running") {
-		renderFunc = utils.SetRunningLeds
+		if centerIdx := utils.Index(renderParams, "center"); centerIdx >= 0 {
+			renderFunc = utils.SetRunningCenterLeds
+		} else {
+			renderFunc = utils.SetRunningLeds
+		}
+		// if the last value is a number then thats that chunk size
+		if num, err := strconv.Atoi(renderParams[len(renderParams)-1]); err == nil {
+			runningChunkSize = float64(num)
+		}
 	}
-	if centerIdx := utils.Index(renderParams, "center"); centerIdx >= 0 {
-		renderFunc = utils.SetRunningCenterLeds
-	}
-	// if the last value is a number then thats that chunk size
-	if num, err := strconv.Atoi(renderParams[len(renderParams)-1]); err == nil {
-		runningChunkSize = float64(num)
-	}
+
 	return nil
 }
 
 func main() {
+	// set Default settings from led.conf
+	data, err := os.ReadFile("../led.conf")
+	if err != nil {
+		panic(err)
+	}
+	LedConf := struct {
+		LedCount   int
+		Brightness int
+		RenderType string
+	}{}
+	json.Unmarshal(data, &LedConf)
+	brightness = LedConf.Brightness
+	ledCount = LedConf.LedCount
+	parseRenderType(LedConf.RenderType)
+
 	flag.IntVar(&ledCount, "c", ledCount, "number of leds in the strip connected")
 	flag.IntVar(&brightness, "b", brightness, "Max brightness of the leds")
 	flag.Func("r", "Render Type (default static)\nstatic\nrunning[-center][-#]\n(# is the chunk size of the pattern and if # omitted is equal to ledCount)\n", parseRenderType)
@@ -62,7 +80,6 @@ func main() {
 	opt.Channels[0].Brightness = brightness
 	opt.Channels[0].LedCount = ledCount
 
-	var err error
 	ledController, err = ws2811.MakeWS2811(&opt)
 	utils.CheckError(err)
 	utils.CheckError(ledController.Init())
