@@ -138,12 +138,12 @@ func init() {
 	http.HandleFunc("/music/getData", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "utf-8")
 		jsonOut, err := json.Marshal(struct {
-			// Power []float64
-			// Freq  []float64
+			Power []float64
+			Freq  []float64
 			Color []uint32 // [r,g,b]
 		}{
-			// Power: pxx[:],
-			// Freq:  freq[:],
+			Power: pxx,
+			Freq:  freq,
 			Color: []uint32{uint32(fftColor[0]), uint32(fftColor[1]), uint32(fftColor[2])},
 		})
 		utils.CheckError(err)

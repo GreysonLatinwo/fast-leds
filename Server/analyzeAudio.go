@@ -16,6 +16,7 @@ var (
 	isProcessAudioStream  bool                = false
 	sampleRate            int                 = 44100
 	numChannels           int                 = 2
+	audioStreamBuffer     []uint16            = make([]uint16, audioStreamBufferSize)
 	pxx, freq             []float64           = []float64{}, []float64{}
 	maxFreqOut            int                 = 3000
 	audioStreamBufferSize int                 = 1 << 10
@@ -31,9 +32,9 @@ var (
 	blueLowerFreq         int                 = 600
 	blueUpperFreq         int                 = maxFreqOut
 	redInScale            float64             = 1.25
-	greenInScale          float64             = 1.33
+	greenInScale          float64             = 1.35
 	blueInScale           float64             = 1.5
-	redOutScale           float64             = 1.5
+	redOutScale           float64             = 1.75
 	greenOutScale         float64             = 1.5
 	blueOutScale          float64             = 1.5
 	fftColor              []byte              = []byte{0, 0, 0}
@@ -46,7 +47,8 @@ var (
 // read audio stream and computes fft and color
 func ProcessAudioStream() {
 	isProcessAudioStream = true
-	audioStreamBuffer := make([]int16, audioStreamBufferSize)
+	//audioStreamBuffer := make([]int16, audioStreamBufferSize)
+	go ComputeBPM()
 	//function reads all data coming from parec
 	go func() {
 		parecCmd := exec.Command("parec")
@@ -82,7 +84,7 @@ func ProcessAudioStream() {
 			Scale_off: false,
 		}
 		pxx, freq = spectral.Pwelch(buffercomplex, float64(sampleRate*numChannels), opt)
-		rangeFreq := utils.ComputeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
+		rangeFreq := 278 //utils.ComputeFreqIdx(maxFreqOut, int(sampleRate), opt.Pad)
 		pxx, freq = pxx[:rangeFreq], freq[:rangeFreq]
 		pxx = utils.NormalizePower(pxx)
 
@@ -117,12 +119,18 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	blueFFTMax := findMax(pxx[blueLowerIdx:blueupperIdx]) * blueInScale
 
 	//make stronger values more prominent to exaggerate them in the leds
-	if blueFFTMax < greenFFTMax && blueFFTMax < redFFTMax {
-		blueFFTMax *= 0.66
-	} else if greenFFTMax < blueFFTMax && greenFFTMax < redFFTMax {
+	if blueFFTMax > greenFFTMax && blueFFTMax > redFFTMax {
+		blueFFTMax *= 1.0
 		greenFFTMax *= 0.66
-	} else if redFFTMax < greenFFTMax && redFFTMax < blueFFTMax {
 		redFFTMax *= 0.66
+	} else if greenFFTMax > blueFFTMax && greenFFTMax > redFFTMax {
+		greenFFTMax *= 1.25
+		redFFTMax *= 0.5
+		blueFFTMax *= 0.5
+	} else if redFFTMax > greenFFTMax && redFFTMax > blueFFTMax {
+		redFFTMax *= 1.5
+		blueFFTMax *= 0.33
+		greenFFTMax *= 0.33
 	}
 
 	//we shouldnt have to recompute entire average every time

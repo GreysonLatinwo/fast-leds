@@ -3,6 +3,7 @@ module github.com/greysonlatinwo/fast-leds/Server
 go 1.17
 
 require (
+	github.com/coral/aubio-go v0.0.0-20190313043018-9658a1866288
 	github.com/godbus/dbus v4.1.0+incompatible
 	github.com/greysonlatinwo/fast-leds/utils v0.0.0-20220121162157-a011b68f7a69
 	github.com/libp2p/go-libp2p v0.17.0

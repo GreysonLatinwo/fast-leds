@@ -29,14 +29,10 @@ func Equal(a, b []uint8) bool {
 
 // normalizes the fft power data
 func NormalizePower(pxx []float64) []float64 {
-	var min = 0
+	var min = 0.0
 	for i := range pxx {
-		PDb := 20 * math.Log10(pxx[i])
-		if PDb < 0 {
-			pxx[i] = math.Max(PDb, float64(min))
-		} else {
-			pxx[i] = math.Max(PDb, float64(min))
-		}
+		PDb := (((10 * math.Log10(float64(i)+10)) + 10) * math.Log10(pxx[i])) + 10
+		pxx[i] = math.Max(PDb, float64(min))
 	}
 	return pxx
 }

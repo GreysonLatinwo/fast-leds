@@ -124,7 +124,7 @@
             switch (Number(energyLevel)) {
                 case 1:
                     //low red green and blue, fft hamming
-                    updateMusicEnergyTypes(50, 100, 75, 4)
+                    updateMusicEnergyTypes(50, 60, 60, 4)
                     break;
                 case 2:
                     //medium red low green and blue, fft bartlett
@@ -328,7 +328,7 @@
         };
 
         // Display using Plotly
-        //Plotly.newPlot("fftPlot", data, fftInitLayout);
+        Plotly.newPlot("fftPlot", data, fftInitLayout);
         Plotly.newPlot("colorPlot", data1, colorInitLayout);
 
         function range(start, end) {
@@ -369,7 +369,7 @@
                         },
                     }];
                     var colorInitLayout = {
-                        width: window.innerWidth,
+                        width: window.innerWidth*0.5,
                         height: Math.max(window.innerHeight*0.66,350),
                         xaxis: {range: [-1, 3]},
                         yaxis: {range: [0, 255], title: "power"},  
@@ -378,22 +378,22 @@
                     
                     Plotly.react("colorPlot", data1, colorInitLayout)
                     
-                    // data = [{
-                    //     x: fftData.Freq,
-                    //     y: fftData.Power,
-                    //     type:"lines"
-                    // }];
-                    // var fftLayout = {
-                    //     width: window.innerWidth*0.66,
-                    //     height: window.innerHeight*0.66,
-                    //     xaxis: {
-                    //         range: [0, 2800],
-                    //         title: "Hz",
-                    //     },
-                    //     yaxis: {range: [-30, 150], title: "Power"},  
-                    //     title: "FFT"
-                    // };
-                    // Plotly.react("fftPlot", data, fftLayout)
+                    data = [{
+                        x: fftData.Freq,
+                        y: fftData.Power,
+                        type:"lines"
+                    }];
+                    var fftLayout = {
+                        width: window.innerWidth*0.5,
+                        height:  Math.max(window.innerHeight*0.66,350),
+                        xaxis: {
+                            range: [0, 3000],
+                            title: "Hz",
+                        },
+                        yaxis: {range: [-30, 255], title: "Power"},  
+                        title: "FFT"
+                    };
+                    Plotly.react("fftPlot", data, fftLayout)
                 })
             });
         }
