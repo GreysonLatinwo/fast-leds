@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"time"
 
 	"github.com/mjibson/go-dsp/spectral"
 	"github.com/mjibson/go-dsp/window"
@@ -16,7 +17,7 @@ var (
 	isProcessAudioStream  bool                = false
 	sampleRate            int                 = 44100
 	numChannels           int                 = 2
-	audioStreamBuffer     []uint16            = make([]uint16, audioStreamBufferSize)
+	audioStreamBuffer     []int16             = make([]int16, audioStreamBufferSize)
 	pxx, freq             []float64           = []float64{}, []float64{}
 	maxFreqOut            int                 = 3000
 	audioStreamBufferSize int                 = 1 << 10
@@ -48,7 +49,6 @@ var (
 func ProcessAudioStream() {
 	isProcessAudioStream = true
 	//audioStreamBuffer := make([]int16, audioStreamBufferSize)
-	go ComputeBPM()
 	//function reads all data coming from parec
 	go func() {
 		parecCmd := exec.Command("parec")
@@ -71,6 +71,11 @@ func ProcessAudioStream() {
 	}()
 	log.Println("Listening to audio stream")
 	for isProcessAudioStream {
+		if sampleRate == 0 {
+			time.Sleep(100 * time.Millisecond)
+			log.Println("Error: incorrect sample rate")
+			continue
+		}
 		//convert buffer to float
 		buffercomplex := make([]float64, audioStreamBufferSize)
 		for i, v := range audioStreamBuffer {
@@ -102,6 +107,10 @@ func computeRGBColor(pxx []float64, sampleRate uint32, pad int) []byte {
 	greenUpperIdx := utils.ComputeFreqIdx(greenUpperFreq, int(sampleRate), pad)
 	blueLowerIdx := utils.ComputeFreqIdx(blueLowerFreq, int(sampleRate), pad)
 	blueupperIdx := utils.ComputeFreqIdx(blueUpperFreq, int(sampleRate), pad)
+
+	if redLowerIdx > numBins {
+		log.Println(sampleRate, pad)
+	}
 
 	findMax := func(arr []float64) float64 {
 		max := 0.0

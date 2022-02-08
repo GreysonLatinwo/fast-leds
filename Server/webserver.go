@@ -77,17 +77,19 @@ func init() {
 			continue
 		}
 
-		ledCommPipe <- [10]byte{
-			presetInt,
-			args[0],
-			args[1],
-			args[2],
-			args[3],
-			args[4],
-			args[5],
-			args[6],
-			args[7],
-			args[8],
+		for i := 0; i < 4; i++ {
+			ledCommPipe <- [10]byte{
+				presetInt,
+				args[0],
+				args[1],
+				args[2],
+				args[3],
+				args[4],
+				args[5],
+				args[6],
+				args[7],
+				args[8],
+			}
 		}
 	})
 

@@ -18,19 +18,30 @@ var Uaddr *net.UDPAddr
 var ledCommPipe = make(chan [10]byte, colorUpdateBufSize)
 
 type remoteLeds struct {
-	Server  *net.UDPConn
-	Clients map[string]*net.UDPAddr
+	Server    *net.UDPConn
+	Clients   map[string]*net.UDPAddr
+	BTClients []*os.File
 }
 
 func StartComms() error {
 	// start mdns listener
 	newPeerChan := initMDNS("fast-leds")
 
+	//server listen on desired port
 	listenAddr := utils.HandleErrPrint(net.ResolveUDPAddr("udp4", UDPClientPort)).(*net.UDPAddr)
 	server := utils.HandleErrPrint(net.ListenUDP("udp4", listenAddr)).(*net.UDPConn)
 
-	piClients := make(map[string]*net.UDPAddr, 2)
+	//init remote data structure
+	piClients := make(map[string]*net.UDPAddr)
 	remote := &remoteLeds{Server: server, Clients: piClients}
+
+	//listen on bluetooth
+	rfcomm0, err := os.OpenFile("/dev/rfcomm0", os.O_RDWR, 0777)
+	if err != nil {
+		panic(err)
+	}
+	remote.BTClients = append(remote.BTClients, rfcomm0)
+
 	go listenForPeers(newPeerChan, remote)
 	go colorServer(remote, ledCommPipe)
 	return nil

@@ -80,18 +80,6 @@ func (ap *AppPulse) NewPlaybackStream(streamPath dbus.ObjectPath) {
 
 // PlaybackStreamRemoved is called when a playback stream is removed.
 //
-func (ap *AppPulse) DeviceVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
-
-}
-
-// PlaybackStreamRemoved is called when a playback stream is removed.
-//
-func (ap *AppPulse) StreamVolumeUpdated(path dbus.ObjectPath, vol []uint32) {
-
-}
-
-// PlaybackStreamRemoved is called when a playback stream is removed.
-//
 func (ap *AppPulse) PlaybackStreamRemoved(path dbus.ObjectPath) {
 	stopMusicListening <- struct{}{}
 	log.Println("playback stream removed:", path)
