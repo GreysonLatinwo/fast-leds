@@ -61,4 +61,6 @@ shell run
 
 `./run.sh -h`
 
+`./run.sh`
+
 Webserver running on port 9001
