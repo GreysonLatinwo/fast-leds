@@ -55,8 +55,10 @@ clone fast-led repo
 
 ## Usage:
 
-`shell run ./build.sh`
+shell run
 
-`run ./run.sh -h`
+`./build.sh`
+
+`./run.sh -h`
 
 Webserver running on port 9001
