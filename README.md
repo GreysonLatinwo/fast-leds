@@ -43,6 +43,7 @@ clone rpi_ws281x repo
 build it (https://github.com/rpi-ws281x/rpi-ws281x-go#compiling-directly-on-the-raspberry-pi)
 
 ```shell
+cd rpi_ws281x/
 scons
 sudo cp *.a /usr/local/lib && sudo cp *.h /usr/local/include
 ```
